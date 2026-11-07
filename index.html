@@ -379,6 +379,7 @@ function startGPS(){
     gpsWatch=navigator.geolocation.watchPosition(p=>{
       gpsState='on';
       const pt={lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
+      ultimaPos={lat:+pt.lat.toFixed(6), lon:+pt.lon.toFixed(6), acc:Math.round(pt.acc), ts:Date.now()};
       if(pt.acc>60){ updateGpsUI(); return; }
       if(gpsLast){
         const d=haversine(gpsLast,pt);
@@ -558,6 +559,7 @@ function actualizarEnVivo(){
     const av=$('#avance'); if(av && !$('#np.open')) av.innerHTML=avanceHTML(j);
   }
   const cl=$('#cargaLive'); const ca=cargaActiva(); if(cl && ca) cl.innerHTML=cargaLiveHTML(ca);
+  const mb=$('#mapaBox'); if(mb && ultimaPos && mb.dataset.ts!=String(ultimaPos.ts)){ mb.dataset.ts=ultimaPos.ts; mb.innerHTML=mapaCDMX(ultimaPos, puntosDelDia(jornadaActiva())); }
 }
 
 let wakeLock=null;
@@ -667,6 +669,97 @@ async function flujoTerminarCargaS(c){
   render();
 }
 
+const CDMX_ALCALDIAS=[{"n":"Azcapotzalco","p":[[[-99.2043,19.515],[-99.1823,19.5075],[-99.1771,19.5062],[-99.173,19.5086],[-99.1569,19.5027],[-99.1431,19.4651],[-99.1506,19.4629],[-99.1587,19.4639],[-99.1629,19.4593],[-99.1637,19.4564],[-99.1885,19.4608],[-99.188,19.4638],[-99.1907,19.4647],[-99.191,19.4706],[-99.201,19.4734],[-99.2068,19.4712],[-99.2211,19.4751],[-99.2102,19.5111],[-99.2043,19.515]]]},{"n":"Benito Juárez","p":[[[-99.1468,19.404],[-99.1374,19.4035],[-99.1366,19.4028],[-99.1372,19.3992],[-99.1309,19.399],[-99.1398,19.3569],[-99.1698,19.3587],[-99.1731,19.3604],[-99.1777,19.3651],[-99.1798,19.363],[-99.1837,19.3617],[-99.1911,19.3635],[-99.1921,19.3734],[-99.1917,19.3827],[-99.1884,19.3932],[-99.1891,19.3956],[-99.1755,19.3981],[-99.157,19.404],[-99.1468,19.404]]]},{"n":"Coyoacán","p":[[[-99.1717,19.3596],[-99.1692,19.3586],[-99.1343,19.3565],[-99.1312,19.3587],[-99.122,19.3577],[-99.1208,19.3518],[-99.1156,19.3433],[-99.1129,19.3354],[-99.1057,19.3263],[-99.0992,19.3209],[-99.1009,19.3],[-99.1092,19.2996],[-99.1168,19.3014],[-99.1347,19.3083],[-99.1426,19.2996],[-99.1474,19.3013],[-99.1516,19.298],[-99.1567,19.2968],[-99.159,19.2997],[-99.1623,19.3013],[-99.1793,19.3034],[-99.1951,19.3021],[-99.2058,19.3057],[-99.2002,19.3112],[-99.2012,19.312],[-99.1949,19.322],[-99.1947,19.3302],[-99.1963,19.3336],[-99.1998,19.3335],[-99.1981,19.3355],[-99.1912,19.3369],[-99.184,19.3436],[-99.1829,19.3466],[-99.1806,19.3472],[-99.1799,19.3496],[-99.173,19.3568],[-99.1717,19.3596]]]},{"n":"Cuajimalpa de Morelos","p":[[[-99.2577,19.4047],[-99.2583,19.4027],[-99.257,19.4004],[-99.2556,19.4031],[-99.2553,19.3987],[-99.2564,19.3965],[-99.2596,19.3943],[-99.2593,19.3926],[-99.2548,19.3937],[-99.2548,19.3952],[-99.2526,19.3935],[-99.247,19.3942],[-99.2485,19.3904],[-99.2477,19.386],[-99.2614,19.3758],[-99.2702,19.3726],[-99.2698,19.3714],[-99.2684,19.3718],[-99.2684,19.3687],[-99.2651,19.3717],[-99.2667,19.3678],[-99.2668,19.3635],[-99.2613,19.361],[-99.2593,19.3502],[-99.2582,19.3497],[-99.2611,19.3478],[-99.259,19.3481],[-99.2631,19.3468],[-99.2684,19.3419],[-99.2812,19.3374],[-99.2802,19.3352],[-99.285,19.3365],[-99.2875,19.3311],[-99.2867,19.3298],[-99.2883,19.3307],[-99.288,19.3335],[-99.2913,19.3292],[-99.2908,19.3266],[-99.2917,19.3242],[-99.2906,19.3215],[-99.2931,19.3205],[-99.2948,19.3169],[-99.2965,19.3172],[-99.3005,19.3223],[-99.3018,19.3183],[-99.3,19.314],[-99.3013,19.3095],[-99.3033,19.3111],[-99.3059,19.3072],[-99.3074,19.3079],[-99.3088,19.3051],[-99.3102,19.3076],[-99.3116,19.3068],[-99.314,19.3014],[-99.3164,19.3001],[-99.3171,19.2934],[-99.3157,19.2899],[-99.3167,19.2861],[-99.3157,19.2822],[-99.3174,19.2749],[-99.3236,19.2651],[-99.3243,19.2326],[-99.3267,19.2326],[-99.3308,19.2379],[-99.3423,19.2411],[-99.3399,19.2597],[-99.3376,19.264],[-99.3392,19.2677],[-99.3447,19.2695],[-99.3482,19.274],[-99.3619,19.2757],[-99.3649,19.2778],[-99.3536,19.2919],[-99.3545,19.2933],[-99.3515,19.2942],[-99.3535,19.2974],[-99.35,19.2968],[-99.3563,19.302],[-99.3566,19.3067],[-99.3338,19.3306],[-99.3312,19.3398],[-99.3283,19.3452],[-99.3285,19.3531],[-99.3274,19.3541],[-99.3264,19.3537],[-99.3233,19.3583],[-99.3181,19.3582],[-99.3207,19.3604],[-99.3195,19.3636],[-99.3169,19.3663],[-99.3154,19.3659],[-99.3131,19.3704],[-99.3078,19.3716],[-99.3035,19.3778],[-99.3013,19.3771],[-99.3012,19.3697],[-99.299,19.3675],[-99.2979,19.3693],[-99.2956,19.3691],[-99.2906,19.375],[-99.2886,19.3751],[-99.2877,19.3767],[-99.2857,19.3764],[-99.285,19.3791],[-99.2828,19.3814],[-99.28,19.3823],[-99.2737,19.387],[-99.2724,19.3897],[-99.2696,19.3904],[-99.2682,19.3924],[-99.2671,19.3921],[-99.2617,19.396],[-99.2611,19.3996],[-99.2591,19.4015],[-99.2577,19.4047]]]},{"n":"Cuauhtémoc","p":[[[-99.1417,19.4658],[-99.1333,19.4649],[-99.1222,19.4598],[-99.1259,19.4482],[-99.1231,19.4425],[-99.1282,19.4138],[-99.1257,19.4043],[-99.1364,19.4028],[-99.1563,19.4041],[-99.1704,19.3998],[-99.1711,19.4035],[-99.1843,19.4078],[-99.1751,19.423],[-99.1776,19.4236],[-99.1658,19.4436],[-99.1631,19.4591],[-99.1587,19.4639],[-99.1503,19.463],[-99.1417,19.4658]]]},{"n":"Gustavo A. Madero","p":[[[-99.1221,19.5925],[-99.1179,19.5906],[-99.1186,19.5845],[-99.1147,19.5798],[-99.1118,19.5687],[-99.1081,19.5649],[-99.1157,19.5567],[-99.1156,19.554],[-99.121,19.5491],[-99.1227,19.5454],[-99.1306,19.5361],[-99.1274,19.5351],[-99.128,19.5245],[-99.1253,19.5205],[-99.1144,19.5111],[-99.1094,19.5103],[-99.1076,19.511],[-99.1073,19.5097],[-99.0974,19.5126],[-99.0639,19.4988],[-99.068,19.4891],[-99.0649,19.4818],[-99.0633,19.4813],[-99.0634,19.4786],[-99.0509,19.4502],[-99.0526,19.4484],[-99.0623,19.4448],[-99.0809,19.4502],[-99.0872,19.4458],[-99.0932,19.4516],[-99.1014,19.4499],[-99.1116,19.4537],[-99.1173,19.4581],[-99.1276,19.4615],[-99.1333,19.4649],[-99.1419,19.4658],[-99.1431,19.4651],[-99.163,19.518],[-99.1746,19.5241],[-99.1714,19.5272],[-99.1754,19.5301],[-99.1762,19.5289],[-99.177,19.5293],[-99.176,19.532],[-99.1592,19.5269],[-99.1568,19.5281],[-99.1586,19.5289],[-99.1558,19.5324],[-99.1585,19.5339],[-99.1511,19.5448],[-99.1609,19.5493],[-99.1576,19.555],[-99.1581,19.5574],[-99.1561,19.5602],[-99.1528,19.562],[-99.1509,19.5605],[-99.1468,19.5646],[-99.1448,19.5708],[-99.1396,19.5754],[-99.1379,19.5811],[-99.1338,19.5849],[-99.1338,19.5862],[-99.127,19.5885],[-99.1237,19.5928],[-99.1221,19.5925]]]},{"n":"Iztacalco","p":[[[-99.0559,19.4222],[-99.0608,19.3826],[-99.0664,19.3835],[-99.084,19.3926],[-99.0846,19.3895],[-99.0888,19.3904],[-99.0956,19.3796],[-99.1225,19.3824],[-99.1225,19.3757],[-99.1355,19.3772],[-99.1309,19.399],[-99.1372,19.3992],[-99.1366,19.4028],[-99.1146,19.4056],[-99.098,19.4091],[-99.0782,19.4071],[-99.0695,19.4203],[-99.0579,19.4209],[-99.0559,19.4222]]]},{"n":"Iztapalapa","p":[[[-99.0581,19.4007],[-99.0196,19.3833],[-98.9919,19.3676],[-98.9946,19.3581],[-98.9788,19.3433],[-98.9743,19.337],[-98.9604,19.3254],[-98.9683,19.3257],[-98.969,19.3247],[-98.9753,19.3256],[-98.9765,19.3243],[-98.9782,19.3253],[-98.9786,19.3239],[-98.9806,19.3247],[-98.9799,19.3261],[-99.0014,19.3271],[-99.0387,19.3157],[-99.0396,19.3147],[-99.0404,19.3154],[-99.0436,19.3122],[-99.0466,19.3149],[-99.0489,19.3119],[-99.0504,19.313],[-99.0523,19.3108],[-99.0538,19.3119],[-99.0599,19.3044],[-99.0634,19.3057],[-99.0648,19.3016],[-99.0616,19.2927],[-99.0692,19.2851],[-99.0749,19.2897],[-99.0977,19.3172],[-99.1,19.3219],[-99.1057,19.3263],[-99.1122,19.3342],[-99.1156,19.3433],[-99.1202,19.3506],[-99.122,19.3577],[-99.1312,19.3587],[-99.1337,19.3566],[-99.1399,19.3574],[-99.1354,19.3773],[-99.1225,19.3757],[-99.1225,19.3824],[-99.0956,19.3796],[-99.0888,19.3904],[-99.0846,19.3895],[-99.084,19.3926],[-99.0664,19.3835],[-99.0608,19.3826],[-99.0581,19.4007]]]},{"n":"La Magdalena Contreras","p":[[[-99.2079,19.3379],[-99.2087,19.336],[-99.2067,19.3362],[-99.2127,19.3269],[-99.2212,19.3201],[-99.2205,19.3113],[-99.2249,19.3106],[-99.2277,19.307],[-99.2319,19.305],[-99.233,19.3018],[-99.2322,19.3015],[-99.2334,19.3008],[-99.2325,19.2979],[-99.2333,19.2966],[-99.236,19.2945],[-99.2414,19.294],[-99.2427,19.2923],[-99.2428,19.2894],[-99.2408,19.287],[-99.243,19.2841],[-99.242,19.283],[-99.2449,19.2801],[-99.2454,19.277],[-99.2435,19.2756],[-99.2446,19.2729],[-99.2435,19.2698],[-99.246,19.2675],[-99.2471,19.2647],[-99.2455,19.2629],[-99.2472,19.2603],[-99.2457,19.2589],[-99.2439,19.2592],[-99.2454,19.2573],[-99.2446,19.2527],[-99.248,19.2467],[-99.2504,19.2457],[-99.2518,19.2424],[-99.251,19.2405],[-99.2534,19.2348],[-99.2589,19.2305],[-99.2707,19.2242],[-99.2742,19.221],[-99.2742,19.2182],[-99.2773,19.2147],[-99.2831,19.2131],[-99.2878,19.2131],[-99.2914,19.2146],[-99.2932,19.2139],[-99.2967,19.2178],[-99.3014,19.2182],[-99.3096,19.2247],[-99.3151,19.2269],[-99.3153,19.2292],[-99.3223,19.2326],[-99.3232,19.2392],[-99.3176,19.2445],[-99.3171,19.2503],[-99.3159,19.2509],[-99.3148,19.255],[-99.3154,19.2564],[-99.3053,19.2579],[-99.3024,19.2589],[-99.3009,19.261],[-99.298,19.2615],[-99.2942,19.2646],[-99.2926,19.2683],[-99.2896,19.2703],[-99.2862,19.2707],[-99.2833,19.2751],[-99.284,19.277],[-99.2811,19.2806],[-99.2782,19.2814],[-99.2779,19.2826],[-99.2733,19.2852],[-99.2762,19.2891],[-99.2725,19.2942],[-99.2715,19.2992],[-99.2697,19.3012],[-99.2722,19.3025],[-99.2684,19.3051],[-99.27,19.3058],[-99.2713,19.3083],[-99.2695,19.3136],[-99.2676,19.3142],[-99.2659,19.3134],[-99.2547,19.3268],[-99.2442,19.3286],[-99.2403,19.3244],[-99.2373,19.3247],[-99.2312,19.3298],[-99.2171,19.3347],[-99.2149,19.3364],[-99.2115,19.3362],[-99.2079,19.3379]]]},{"n":"Miguel Hidalgo","p":[[[-99.2008,19.4734],[-99.1904,19.4705],[-99.1907,19.4647],[-99.188,19.4638],[-99.1885,19.4608],[-99.1637,19.4564],[-99.1658,19.4436],[-99.1776,19.4236],[-99.1751,19.423],[-99.1843,19.4078],[-99.1711,19.4035],[-99.1704,19.3998],[-99.1891,19.3956],[-99.1922,19.4011],[-99.1922,19.4037],[-99.1976,19.4031],[-99.2105,19.4004],[-99.2236,19.3959],[-99.2378,19.3935],[-99.2399,19.3889],[-99.2427,19.387],[-99.2455,19.3874],[-99.2477,19.386],[-99.2485,19.3904],[-99.247,19.3942],[-99.2526,19.3935],[-99.2548,19.3952],[-99.2548,19.3937],[-99.2592,19.3926],[-99.2596,19.3943],[-99.2557,19.3973],[-99.2558,19.4036],[-99.2549,19.4046],[-99.2483,19.4086],[-99.2408,19.4119],[-99.2373,19.4124],[-99.2308,19.4217],[-99.2255,19.4266],[-99.2223,19.4269],[-99.2234,19.4295],[-99.2268,19.4313],[-99.2262,19.434],[-99.2296,19.4374],[-99.2206,19.4437],[-99.2181,19.4441],[-99.2201,19.4461],[-99.22,19.4529],[-99.2174,19.4537],[-99.2153,19.4562],[-99.2115,19.468],[-99.2089,19.4701],[-99.2072,19.4696],[-99.2068,19.4712],[-99.205,19.4722],[-99.2008,19.4734]]]},{"n":"Milpa Alta","p":[[[-98.9988,19.2277],[-98.9972,19.2275],[-98.9975,19.2265],[-98.9958,19.225],[-98.9953,19.2275],[-98.9937,19.2275],[-98.9933,19.2249],[-98.9912,19.2248],[-98.9906,19.2258],[-98.9782,19.2151],[-98.9736,19.2141],[-98.9668,19.209],[-98.9672,19.2063],[-98.9697,19.2043],[-98.9677,19.2031],[-98.967,19.1999],[-98.9677,19.1897],[-98.9598,19.1792],[-98.9562,19.1768],[-98.9524,19.1686],[-98.9674,19.1644],[-98.9546,19.1495],[-98.9665,19.1439],[-98.9611,19.133],[-98.9575,19.1224],[-98.9591,19.1043],[-98.9612,19.0956],[-98.9657,19.0859],[-98.979,19.0745],[-98.9836,19.0788],[-99.029,19.0854],[-99.0432,19.0758],[-99.0598,19.0482],[-99.1254,19.0621],[-99.1354,19.0893],[-99.1365,19.0894],[-99.1633,19.1175],[-99.1525,19.1421],[-99.152,19.1508],[-99.1496,19.1603],[-99.1445,19.1587],[-99.1404,19.1522],[-99.1324,19.1486],[-99.1048,19.199],[-99.1022,19.2007],[-99.1017,19.2048],[-99.0992,19.2081],[-99.0957,19.2086],[-99.0946,19.2115],[-99.091,19.211],[-99.0302,19.2236],[-99.0001,19.2263],[-99.003,19.2276],[-98.9998,19.2268],[-98.9988,19.2277]]]},{"n":"Tlalpan","p":[[[-99.2198,19.3121],[-99.2154,19.3076],[-99.2022,19.305],[-99.1963,19.3023],[-99.1793,19.3034],[-99.1656,19.3017],[-99.1602,19.3006],[-99.1567,19.2968],[-99.1516,19.298],[-99.1474,19.3013],[-99.1426,19.2996],[-99.1347,19.3083],[-99.1168,19.3014],[-99.1092,19.2996],[-99.1009,19.3],[-99.1014,19.2952],[-99.105,19.2935],[-99.1249,19.2852],[-99.1351,19.2825],[-99.1411,19.2825],[-99.1421,19.2739],[-99.1412,19.2735],[-99.1449,19.2674],[-99.1424,19.2666],[-99.1424,19.2602],[-99.1402,19.2579],[-99.1408,19.257],[-99.1394,19.2547],[-99.1417,19.249],[-99.1389,19.246],[-99.1404,19.2436],[-99.1443,19.2447],[-99.144,19.2397],[-99.1475,19.2403],[-99.1445,19.2345],[-99.1479,19.2346],[-99.1482,19.2363],[-99.1495,19.234],[-99.1507,19.2347],[-99.1506,19.2326],[-99.1534,19.226],[-99.1512,19.2234],[-99.1525,19.2205],[-99.1535,19.2218],[-99.1544,19.2206],[-99.1383,19.2157],[-99.1328,19.21],[-99.1324,19.2065],[-99.1293,19.203],[-99.1307,19.1913],[-99.1271,19.1873],[-99.1301,19.1839],[-99.1324,19.1785],[-99.1321,19.1751],[-99.13,19.1722],[-99.1303,19.1659],[-99.1327,19.1601],[-99.1328,19.1549],[-99.1325,19.153],[-99.1302,19.1525],[-99.1324,19.1486],[-99.1404,19.1522],[-99.1445,19.1587],[-99.1496,19.1603],[-99.152,19.1508],[-99.1525,19.1421],[-99.1633,19.1175],[-99.1365,19.0894],[-99.2268,19.0961],[-99.2787,19.1317],[-99.2876,19.1466],[-99.2956,19.1729],[-99.3028,19.1909],[-99.3071,19.2137],[-99.3162,19.2215],[-99.3156,19.2274],[-99.3057,19.2222],[-99.3014,19.2182],[-99.2967,19.2178],[-99.2932,19.2139],[-99.2914,19.2146],[-99.2878,19.2131],[-99.2824,19.2131],[-99.2772,19.2148],[-99.2742,19.2182],[-99.2742,19.221],[-99.2707,19.2242],[-99.2589,19.2305],[-99.2534,19.2348],[-99.251,19.2405],[-99.2518,19.2424],[-99.2504,19.2457],[-99.248,19.2467],[-99.2446,19.2527],[-99.2454,19.2573],[-99.2439,19.2592],[-99.2457,19.2589],[-99.2472,19.2603],[-99.2455,19.2629],[-99.2471,19.2647],[-99.246,19.2675],[-99.2435,19.2698],[-99.2446,19.2729],[-99.2435,19.2756],[-99.2454,19.277],[-99.2449,19.2801],[-99.242,19.283],[-99.243,19.2841],[-99.2408,19.287],[-99.2428,19.2894],[-99.2427,19.2923],[-99.2414,19.294],[-99.236,19.2945],[-99.2333,19.2966],[-99.2325,19.2979],[-99.2334,19.3008],[-99.2322,19.3015],[-99.233,19.3018],[-99.2319,19.305],[-99.2277,19.307],[-99.2249,19.3106],[-99.2207,19.3111],[-99.2198,19.3121]]]},{"n":"Tláhuac","p":[[[-99.0014,19.3271],[-98.9799,19.3261],[-98.9806,19.3247],[-98.9786,19.3239],[-98.9782,19.3253],[-98.9765,19.3243],[-98.9753,19.3256],[-98.969,19.3247],[-98.9683,19.3257],[-98.9604,19.3254],[-98.9579,19.3232],[-98.963,19.3167],[-98.9648,19.3069],[-98.9672,19.306],[-98.9765,19.2531],[-98.966,19.2499],[-98.9686,19.2322],[-98.9403,19.2232],[-98.9426,19.2156],[-98.9511,19.2182],[-98.9539,19.2146],[-98.9627,19.2141],[-98.9685,19.2106],[-98.9743,19.2144],[-98.9782,19.2151],[-98.9906,19.2258],[-98.9912,19.2248],[-98.9933,19.2249],[-98.9937,19.2275],[-98.9953,19.2275],[-98.9958,19.225],[-98.9975,19.2265],[-98.9972,19.2275],[-98.9998,19.2268],[-99.003,19.2276],[-99.0001,19.2263],[-99.0302,19.2236],[-99.0155,19.2409],[-99.0139,19.2451],[-99.0126,19.2447],[-99.0123,19.2465],[-99.0112,19.2461],[-99.0089,19.2507],[-99.007,19.2516],[-99.0128,19.2579],[-99.0165,19.26],[-99.0298,19.2626],[-99.0373,19.2717],[-99.0545,19.2794],[-99.0644,19.282],[-99.069,19.285],[-99.0616,19.2927],[-99.0648,19.3016],[-99.0634,19.3057],[-99.0599,19.3044],[-99.0538,19.3119],[-99.0523,19.3108],[-99.0504,19.313],[-99.0489,19.3119],[-99.0466,19.3149],[-99.0436,19.3122],[-99.0404,19.3154],[-99.0396,19.3147],[-99.0387,19.3157],[-99.0014,19.3271]]]},{"n":"Venustiano Carranza","p":[[[-99.1222,19.4598],[-99.1171,19.458],[-99.1118,19.4538],[-99.1014,19.4499],[-99.0932,19.4516],[-99.0872,19.4458],[-99.0809,19.4502],[-99.0623,19.4448],[-99.0526,19.4484],[-99.0509,19.4502],[-99.0465,19.4424],[-99.0558,19.4221],[-99.0579,19.4209],[-99.0695,19.4203],[-99.078,19.4071],[-99.098,19.4091],[-99.1257,19.4043],[-99.1282,19.4138],[-99.1231,19.4425],[-99.1259,19.4482],[-99.1222,19.4598]]]},{"n":"Xochimilco","p":[[[-99.0987,19.3196],[-99.0943,19.3128],[-99.0749,19.2897],[-99.0683,19.2844],[-99.0644,19.282],[-99.0545,19.2794],[-99.0373,19.2717],[-99.0298,19.2626],[-99.0165,19.26],[-99.0128,19.2579],[-99.007,19.2516],[-99.0089,19.2507],[-99.0112,19.2461],[-99.0123,19.2465],[-99.0126,19.2447],[-99.0139,19.2451],[-99.0155,19.2409],[-99.0302,19.2236],[-99.091,19.211],[-99.0946,19.2115],[-99.0957,19.2086],[-99.0993,19.2081],[-99.1017,19.2048],[-99.1022,19.2007],[-99.1048,19.199],[-99.1302,19.1525],[-99.1317,19.1526],[-99.1326,19.1532],[-99.1327,19.1601],[-99.1303,19.1659],[-99.1299,19.1724],[-99.1321,19.1751],[-99.1324,19.1785],[-99.1301,19.1839],[-99.1271,19.1873],[-99.1307,19.1913],[-99.1293,19.203],[-99.1324,19.2065],[-99.1328,19.21],[-99.1383,19.2157],[-99.1544,19.2206],[-99.1535,19.2218],[-99.1525,19.2205],[-99.1512,19.2234],[-99.1534,19.226],[-99.1506,19.2326],[-99.1507,19.2347],[-99.1495,19.234],[-99.1482,19.2363],[-99.1479,19.2346],[-99.1445,19.2345],[-99.1475,19.2403],[-99.144,19.2397],[-99.1443,19.2447],[-99.1404,19.2436],[-99.1389,19.246],[-99.1417,19.249],[-99.1394,19.2547],[-99.1408,19.257],[-99.1402,19.2579],[-99.1424,19.2602],[-99.1424,19.2666],[-99.1449,19.2674],[-99.1412,19.2735],[-99.1421,19.2739],[-99.1411,19.2825],[-99.1351,19.2825],[-99.1249,19.2852],[-99.1014,19.2952],[-99.0987,19.3196]]]},{"n":"Álvaro Obregón","p":[[[-99.1922,19.4037],[-99.1922,19.4011],[-99.1884,19.3936],[-99.1917,19.3827],[-99.1921,19.3734],[-99.1911,19.3635],[-99.1837,19.3617],[-99.1798,19.363],[-99.1777,19.3651],[-99.1717,19.3596],[-99.173,19.3568],[-99.1799,19.3496],[-99.1806,19.3472],[-99.1829,19.3466],[-99.184,19.3436],[-99.1912,19.3369],[-99.1981,19.3355],[-99.1998,19.3335],[-99.1963,19.3336],[-99.1947,19.3302],[-99.195,19.3218],[-99.2012,19.312],[-99.2002,19.3112],[-99.2058,19.3057],[-99.2159,19.3079],[-99.2205,19.3137],[-99.2211,19.3203],[-99.2128,19.3268],[-99.2067,19.3362],[-99.2087,19.336],[-99.2075,19.3378],[-99.2115,19.3362],[-99.2149,19.3364],[-99.2171,19.3347],[-99.2312,19.3298],[-99.2373,19.3247],[-99.2403,19.3244],[-99.2442,19.3286],[-99.2552,19.3266],[-99.2659,19.3134],[-99.2684,19.314],[-99.2705,19.3119],[-99.2712,19.3072],[-99.2684,19.3051],[-99.2722,19.3025],[-99.2697,19.3012],[-99.2715,19.2992],[-99.2725,19.2942],[-99.2762,19.2891],[-99.2733,19.2852],[-99.2779,19.2826],[-99.2782,19.2814],[-99.2811,19.2806],[-99.284,19.277],[-99.2833,19.2751],[-99.2862,19.2707],[-99.2896,19.2703],[-99.2926,19.2683],[-99.2942,19.2646],[-99.298,19.2615],[-99.3009,19.261],[-99.3024,19.2589],[-99.3053,19.2579],[-99.3154,19.2564],[-99.3148,19.255],[-99.3159,19.2509],[-99.3171,19.2503],[-99.3176,19.2445],[-99.3227,19.2403],[-99.3233,19.2386],[-99.3223,19.2326],[-99.3243,19.2326],[-99.3236,19.2651],[-99.3174,19.2749],[-99.3157,19.2822],[-99.3167,19.2861],[-99.3157,19.2899],[-99.3171,19.2934],[-99.3164,19.3001],[-99.314,19.3014],[-99.3116,19.3068],[-99.3102,19.3076],[-99.3088,19.3051],[-99.3074,19.3079],[-99.3059,19.3072],[-99.3033,19.3111],[-99.3013,19.3095],[-99.3,19.314],[-99.3018,19.3183],[-99.3005,19.3223],[-99.2965,19.3172],[-99.2948,19.3169],[-99.2931,19.3205],[-99.2906,19.3215],[-99.2917,19.3242],[-99.2908,19.3266],[-99.2913,19.3292],[-99.288,19.3335],[-99.2883,19.3307],[-99.2867,19.3298],[-99.2875,19.3311],[-99.285,19.3365],[-99.2802,19.3352],[-99.2812,19.3374],[-99.2684,19.3419],[-99.2631,19.3468],[-99.259,19.3481],[-99.2611,19.3478],[-99.2582,19.3498],[-99.2593,19.3502],[-99.2613,19.361],[-99.2668,19.3635],[-99.2667,19.3678],[-99.2651,19.3717],[-99.2684,19.3687],[-99.2684,19.3718],[-99.2698,19.3714],[-99.27,19.3731],[-99.2614,19.3758],[-99.246,19.3872],[-99.2421,19.3874],[-99.2397,19.3891],[-99.2378,19.3935],[-99.2236,19.3959],[-99.2105,19.4004],[-99.1922,19.4037]]]}];  // Límites: INEGI, Marco Geoestadístico (simplificado)
+/* =================== Ubicación, mapa CDMX, puntualidad y velocidad =================== */
+let ultimaPos=null;   // {lat,lon,acc,ts}
+function obtenerUbicacion(){
+  return new Promise((res,rej)=>{
+    if(!('geolocation' in navigator)) return rej(new Error('Este dispositivo no tiene ubicación'));
+    try{
+      navigator.geolocation.getCurrentPosition(p=>{
+        const c={lat:+p.coords.latitude.toFixed(6), lon:+p.coords.longitude.toFixed(6), acc:Math.round(p.coords.accuracy), ts:Date.now()};
+        ultimaPos=c; res(c);
+      }, e=>{
+        if(ultimaPos && Date.now()-ultimaPos.ts<120000) return res(ultimaPos);   // usa la última lectura reciente del GPS
+        rej(new Error(e && e.code===1? 'Permiso de ubicación denegado' : 'No se pudo obtener la ubicación'));
+      }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+    }catch(e){ rej(new Error('Ubicación no disponible aquí')); }
+  });
+}
+const gmaps = c => `https://www.google.com/maps?q=${c.lat},${c.lon}`;
+const fmtCoord = c => `${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}`;
+function enPoligono(lon,lat,poly){ let d=false; for(let i=0,k=poly.length-1;i<poly.length;k=i++){ const [xi,yi]=poly[i],[xk,yk]=poly[k];
+  if(((yi>lat)!==(yk>lat)) && (lon < (xk-xi)*(lat-yi)/(yk-yi)+xi)) d=!d; } return d; }
+function alcaldiaDe(c){ if(!c) return null; const a=CDMX_ALCALDIAS.find(a=>a.p.some(p=>enPoligono(c.lon,c.lat,p))); return a? a.n : null; }
+const zona = c => alcaldiaDe(c) || 'Fuera de la CDMX';
+
+function mapaCDMX(pos, puntos){
+  const W=360, H=420, pad=12, k0=Math.cos(19.4*Math.PI/180);
+  let minLon=-99.3649, maxLon=-98.9403, minLat=19.0482, maxLat=19.5928;
+  [pos,...puntos].filter(Boolean).forEach(c=>{ minLon=Math.min(minLon,c.lon-0.01); maxLon=Math.max(maxLon,c.lon+0.01); minLat=Math.min(minLat,c.lat-0.01); maxLat=Math.max(maxLat,c.lat+0.01); });
+  const sx=(W-2*pad)/((maxLon-minLon)*k0), sy=(H-2*pad)/(maxLat-minLat), s=Math.min(sx,sy);
+  const ox=(W-(maxLon-minLon)*k0*s)/2, oy=(H-(maxLat-minLat)*s)/2;
+  const X=lon=>ox+(lon-minLon)*k0*s, Y=lat=>oy+(maxLat-lat)*s;
+  const actual=alcaldiaDe(pos);
+  let g='';
+  CDMX_ALCALDIAS.forEach(a=>{ const on=a.n===actual;
+    a.p.forEach(p=>{ g+=`<path d="M${p.map(([x,y])=>X(x).toFixed(1)+','+Y(y).toFixed(1)).join('L')}Z" fill="${on?'#1d3b5c':'#222220'}" stroke="${on?'#3987e5':'#55554f'}" stroke-width="${on?2:1}"/>`; }); });
+  const corto={'Gustavo A. Madero':'GAM','Venustiano Carranza':'V. Carranza','Cuajimalpa de Morelos':'Cuajimalpa','La Magdalena Contreras':'Magdalena C.','Álvaro Obregón':'Á. Obregón','Benito Juárez':'B. Juárez','Miguel Hidalgo':'M. Hidalgo'};
+  CDMX_ALCALDIAS.forEach(a=>{ const p=a.p.reduce((m,x)=>x.length>m.length?x:m,a.p[0]); const cx=p.reduce((s,q)=>s+q[0],0)/p.length, cy=p.reduce((s,q)=>s+q[1],0)/p.length;
+    g+=`<text x="${X(cx).toFixed(1)}" y="${Y(cy).toFixed(1)}" text-anchor="middle" font-size="9" fill="${a.n===actual?'#f0efec':'#8d8c84'}" font-weight="${a.n===actual?700:400}">${corto[a.n]||a.n}</text>`; });
+  puntos.forEach(c=>{ g+=`<circle cx="${X(c.lon).toFixed(1)}" cy="${Y(c.lat).toFixed(1)}" r="4" fill="${c.tipo==='ini'?'#3987e5':'#2fbf71'}" stroke="#121211" stroke-width="1.5"/>`; });
+  if(pos){ const px=X(pos.lon), py=Y(pos.lat);
+    g+=`<circle cx="${px}" cy="${py}" r="16" fill="#3987e5" opacity=".25"><animate attributeName="r" values="10;20;10" dur="2s" repeatCount="indefinite"/></circle>`;
+    g+=`<g transform="translate(${px-17},${py-16}) scale(.78)">${CARRO}</g>`; }
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:520px;display:block;margin:0 auto" role="img" aria-label="Mapa de la Ciudad de México${actual?', estás en '+actual:''}">${g}</svg>`;
+}
+function puntosDelDia(j){
+  const r=[]; if(!j) return r;
+  j.viajes.forEach(t=>{ if(t.coordIni) r.push({...t.coordIni,tipo:'ini'}); if(t.coordFin) r.push({...t.coordFin,tipo:'fin'}); });
+  if(j.viajeActivo?.coordIni) r.push({...j.viajeActivo.coordIni,tipo:'ini'});
+  return r;
+}
+function mapaCardHTML(j){
+  const pos=ultimaPos;
+  return `<div class="card"><h2>🗺️ ¿Dónde está el coche?</h2>
+    <div id="mapaBox">${mapaCDMX(pos, puntosDelDia(j))}</div>
+    <div style="margin-top:8px;font-size:15px">${pos? `Estás en <b>${zona(pos)}</b> · <span class="muted">${fmtCoord(pos)} (±${pos.acc} m) · ${fmtHora(pos.ts)}</span> · <a href="${gmaps(pos)}" target="_blank" rel="noopener" style="color:var(--accent)">Abrir en Google Maps</a>`:'<span class="muted">Toca «Obtener ubicación» para ver en qué zona estás.</span>'}</div>
+    ${puntosDelDia(j).length?'<div class="legend" style="margin-top:6px"><span style="--c:#3987e5">Inicio de viaje</span><span style="--c:#2fbf71">Destino de viaje</span></div>':''}
+    <button class="btn go" id="btnUbic" style="padding:16px">📍 Obtener ubicación</button>
+    <div class="muted" style="font-size:11px;margin-top:6px">Límites de alcaldías: INEGI, Marco Geoestadístico. El mapa funciona sin internet.</div></div>`;
+}
+async function accionUbicacion(j){
+  const btn=$('#btnUbic'); if(btn){ btn.disabled=true; btn.textContent='Buscando señal GPS…'; }
+  try{
+    const c=await obtenerUbicacion();
+    let nota='';
+    if(j && j.viajeActivo && !j.viajeActivo.coordIni){ j.viajeActivo.coordIni=c; save(j); nota='Guardada como <b>ubicación de inicio</b> del viaje en curso.'; }
+    openModal(`<h3>📍 Tu ubicación</h3>
+      <div class="big" style="font-size:24px;margin:8px 0">${fmtCoord(c)}</div>
+      <div class="sec">${zona(c)} · precisión ±${c.acc} m · ${fmtHora(c.ts)}</div>
+      ${nota?`<p class="sec">${nota}</p>`:''}
+      <a class="btn sec2" style="text-align:center;text-decoration:none" href="${gmaps(c)}" target="_blank" rel="noopener">Abrir en Google Maps</a>
+      <button class="btn sec2" id="cp">Copiar coordenadas</button><button class="btn" id="cl">Listo</button>`, s=>{
+        s.querySelector('#cl').onclick=closeModal;
+        s.querySelector('#cp').onclick=async()=>{ try{ await navigator.clipboard.writeText(fmtCoord(c)); toast('Coordenadas copiadas'); }catch(e){ toast(fmtCoord(c)); } };
+      });
+  }catch(e){
+    openModal(`<h3>No se pudo obtener la ubicación</h3><p class="sec">${esc(e.message)}.</p>
+      <p class="muted">Dentro de Claude la ubicación está bloqueada. Usa la versión instalada (GitHub) en tu iPhone o Moto G34 y permite el acceso a la ubicación. El iPad Wi-Fi no tiene GPS.</p>
+      <button class="btn" id="cl">Entendido</button>`, s=>s.querySelector('#cl').onclick=closeModal);
+  }
+  render();
+}
+/* Puntualidad: tiempo real vs. tiempo estimado por Uber */
+function etaInfo(t){
+  if(!t.minEst || !t.fin) return null;
+  const real=(t.fin-t.inicio)/60000, d=Math.round(t.minEst-real), u=n=>n===1?'minuto':'minutos';
+  return {real, est:t.minEst, d,
+    msg: d>0? `Llegaste ${d} ${u(d)} antes` : d<0? `Llegaste ${-d} ${u(-d)} después` : 'Llegaste en el tiempo exacto',
+    cls: d>0? 'up' : d<0? 'down' : 'sec', icon: d>0?'🟢':d<0?'🔴':'🎯'};
+}
+const velocidad = (km,ms) => ms>0? km/(ms/3600000) : 0;
+
 /* =================== Vista: Jornada =================== */
 let tick=null;
 const r2 = n => Math.round(n*100)/100;
@@ -692,10 +785,15 @@ async function flujoIniciarViaje(j){
   const c=await askNumber({paso:3,total:4,titulo:`Viaje #${n}: distancia al destino`,ayuda:'Los km que te indica Uber para este viaje (para el avance A → B)',unidad:'km',opcional:true,placeholder:'Ej. 12',validar:v=>v<=0?'Debe ser mayor a 0':null}); if(!c) return;
   const d=await askNumber({paso:4,total:4,titulo:`Viaje #${n}: tiempo estimado`,ayuda:'Minutos que indica Uber para llegar (se usa si no hay GPS)',unidad:'min',decimales:false,opcional:true,placeholder:'Ej. 25',validar:v=>v<=0?'Debe ser mayor a 0':null,okText:'▶ Iniciar viaje'}); if(!d) return;
   j.viajeActivo={id:uid(), inicio:Date.now(), kmIni:a.valor, autIni:b.omitido?null:b.valor, gpsKm:0, distEst:c.omitido?null:c.valor, minEst:d.omitido?null:d.valor}; save(j); render();
+  const vid=j.viajeActivo.id;
+  obtenerUbicacion().then(cc=>{ if(j.viajeActivo && j.viajeActivo.id===vid && !j.viajeActivo.coordIni){ j.viajeActivo.coordIni=cc; save(j); render(); } }).catch(()=>{});
 }
 async function flujoTerminarViaje(j){
   const va=j.viajeActivo, n=j.viajes.length+1;
   const prevSum=j.viajes.reduce((s,x)=>s+(x.pago||0),0);
+  const finTs=Date.now();                                        // el viaje termina al tocar «Terminar viaje»
+  const ubiFin=obtenerUbicacion().catch(()=>null);               // destino: se toma en segundo plano
+  const eta=etaInfo({minEst:va.minEst, inicio:va.inicio, fin:finTs});
   const sug = va.gpsKm? Math.round((va.kmIni+va.gpsKm)*10)/10 : null;
   const a=await askNumber({paso:1,total:3,titulo:`Viaje #${n}: odómetro al terminar`,ayuda:`Km inicial del viaje: ${fmtNum(va.kmIni)}${va.gpsKm?' · GPS midió '+fmtKm(va.gpsKm):''}`,unidad:'km',valor:sug,
     extra:v=> v>va.kmIni? `<div class="kpi">Distancia del viaje: <b>${fmtKm(v-va.kmIni)}</b></div>`:'',
@@ -711,12 +809,15 @@ async function flujoTerminarViaje(j){
     modos:[{id:'acum',label:'Acumulado del día'},{id:'pago',label:'Pago del viaje'}], modo: prevSum>0?'acum':'pago',
     onModo:(nuevo,v,viejo)=>{ if(!isFinite(v)||nuevo===viejo) return null; const p=pagoDe(v,viejo); return nuevo==='acum'? p+prevSum : p; },
     extra:(v,m)=>{ const p=pagoDe(v,m); return (m==='acum'?`<div class="np-help" style="margin-bottom:6px">Viajes anteriores ${fmt$(prevSum)} → <b class="sec">este viaje ${isFinite(p)?fmt$(p):'—'}</b></div>`:'')
-      + `<div class="kpi">${previewViaje(k,p,va.autIni,af??NaN)}</div>`; },
+      + `<div class="kpi">${previewViaje(k,p,va.autIni,af??NaN)}</div>`
+      + (eta? `<div class="kpi" style="margin-top:8px">⏱ ${fmtCrono(finTs-va.inicio)} de ${va.minEst} min estimados · <b class="${eta.cls}">${eta.icon} ${eta.msg}</b></div>`:''); },
     validar:(v,m)=> pagoDe(v,m)<0? 'El acumulado no puede ser menor que tus viajes anteriores ('+fmt$(prevSum)+')' : null,
     okText:'✔ Guardar viaje'}); if(!c) return;
   const p=pagoDe(c.valor,c.modo);
-  j.viajes.push({id:va.id, inicio:va.inicio, fin:Date.now(), distEst:va.distEst??null, minEst:va.minEst??null, kmIni:va.kmIni, kmFin:a.valor, autIni:va.autIni??null, autFin:af, pago:r2(p), acum: c.modo==='acum'? c.valor : null, gpsKm:va.gpsKm||0});
-  recalcPagos(j); j.viajeActivo=null; save(j); toast('Viaje #'+n+': '+fmt$(p)+' · '+fmt$(p/k)+'/km · duró '+fmtCrono(Date.now()-va.inicio)); render();
+  const trip={id:va.id, inicio:va.inicio, fin:finTs, distEst:va.distEst??null, minEst:va.minEst??null, kmIni:va.kmIni, kmFin:a.valor, autIni:va.autIni??null, autFin:af, pago:r2(p), acum: c.modo==='acum'? c.valor : null, gpsKm:va.gpsKm||0, coordIni:va.coordIni||null, coordFin:null};
+  j.viajes.push(trip);
+  recalcPagos(j); j.viajeActivo=null; save(j); toast('Viaje #'+n+': '+fmt$(p)+' · '+fmt$(p/k)+'/km · duró '+fmtCrono(finTs-va.inicio)+(eta?' · '+eta.msg:'')); render();
+  ubiFin.then(cc=>{ if(cc){ const t=j.viajes.find(x=>x.id===trip.id); if(t){ t.coordFin=cc; save(j); render(); } } });
 }
 async function flujoCarga(j){
   if(j.batIni==null){
@@ -755,9 +856,11 @@ function renderJornada(){
         <button class="btn go" id="btnIniciar" style="padding:22px;font-size:20px">▶ Iniciar jornada</button>
       </div>
       ${cargaCardHTML()}
+      ${mapaCardHTML(null)}
       ${ult? resumenCard(ult,'Última jornada') : '<div class="card empty">Aún no hay jornadas registradas.</div>'}`;
     $('#btnIniciar').onclick=()=>flujoIniciarJornada(ult);
     conectarCargaCard();
+    $('#btnUbic').onclick=()=>accionUbicacion(null);
     clearInterval(tick); tick=setInterval(actualizarEnVivo,1000);
     return;
   }
@@ -787,6 +890,7 @@ function renderJornada(){
       <h2>Viaje en curso</h2>
       <div class="muted">Viaje #${j.viajes.length+1} · desde ${fmtHora(va.inicio)} · odómetro ${fmtNum(va.kmIni)} km${va.autIni!=null?' · autonomía '+fmtNum(va.autIni)+' km':''}${va.gpsKm? ' · GPS '+fmtKm(va.gpsKm):''}</div>
       <div id="avance">${avanceHTML(j)}</div>
+      <div class="muted" style="font-size:12px;margin-top:6px">🧭 Inicio: ${va.coordIni? `<a href="${gmaps(va.coordIni)}" target="_blank" rel="noopener" style="color:var(--accent)">${fmtCoord(va.coordIni)}</a> (${zona(va.coordIni)})` : 'sin ubicación — toca «Obtener ubicación» en el mapa'}</div>
       <button class="btn go" id="btnFinViaje" style="padding:22px;font-size:20px">■ Terminar viaje</button>
       <button class="btn sec2 small" id="btnCancelViaje">Cancelar viaje</button>
     </div>` : `
@@ -797,7 +901,8 @@ function renderJornada(){
       ${viajesDesc.length? viajesDesc.map(t=>tripRow(t,null,true)).join('') : '<div class="empty">Sin viajes todavía.</div>'}
     </div>
     <button class="btn danger" id="btnFinJornada">Terminar jornada</button>
-    <button class="btn sec2 small" id="btnBorrarJ">Descartar jornada</button>`;
+    <button class="btn sec2 small" id="btnBorrarJ">Descartar jornada</button>
+    <div style="margin-top:12px">${mapaCardHTML(j)}</div>`;
   updateGpsUI();
   clearInterval(tick); tick=setInterval(actualizarEnVivo,1000);
   conectarCargaCard();
@@ -818,6 +923,7 @@ function renderJornada(){
     $('#btnCancelViaje').onclick=()=>confirmar('¿Cancelar el viaje en curso? No se guardará.',()=>{ j.viajeActivo=null; save(j); render(); },'Cancelar viaje');
   }
   $('#btnFinJornada').onclick=()=>{ if(va){ toast('Primero termina el viaje en curso'); return; } flujoTerminarJornada(j); };
+  $('#btnUbic').onclick=()=>accionUbicacion(j);
   $('#btnBorrarJ').onclick=()=>confirmar('¿Descartar esta jornada y todos sus viajes?',()=>{ removeJornada(j.id); render(); },'Descartar');
 }
 
@@ -837,6 +943,7 @@ function formViaje(j, t){
     <div><label>Autonomía final (km)</label><input id="af" inputmode="none" readonly class="numf" data-opt value="${t? (t.autFin??''):''}"></div></div>
     <div id="gbox"></div>
     ${hayDespues?'<div class="muted" style="margin-top:6px">Si cambias la ganancia, se recalculará el pago del viaje siguiente que se registró con acumulado.</div>':''}
+    <label>Tiempo estimado por Uber (min)</label><input id="me" inputmode="none" readonly class="numf" data-opt data-u="min" value="${t?.minEst??''}">
     <div class="row"><div><label>Hora inicio</label><input id="h1" type="time" value="${fmtHora24(t? t.inicio : inicioRef)}"></div>
     <div><label>Hora fin</label><input id="h2" type="time" value="${fmtHora24(t? t.fin : Date.now())}"></div></div>
     <div class="row"><div><label>Origen <span class="muted" style="font-size:12px">(opcional)</span></label><input id="org" type="text" maxlength="120" placeholder="Ej. Metro Constitución" value="${esc(t?.origen||'')}"></div>
@@ -865,7 +972,7 @@ function formViaje(j, t){
         const p = g.mode==='acum'? g.val-sp : g.val;
         if(!(p>=0)) return err(s,'El acumulado no puede ser menor que los viajes anteriores ('+fmt$(sp)+')');
         const obj={...(t||{}), id:t?t.id:uid(), inicio:ini, fin, kmIni:a, kmFin:b, autIni:ai, autFin:af, pago:Math.round(p*100)/100, acum: g.mode==='acum'? g.val : null, gpsKm:t?.gpsKm||0,
-          origen:s.querySelector('#org').value.trim(), destino:s.querySelector('#dst').value.trim(), comentario:s.querySelector('#com').value.trim()};
+          minEst: v('#me'), origen:s.querySelector('#org').value.trim(), destino:s.querySelector('#dst').value.trim(), comentario:s.querySelector('#com').value.trim()};
         if(nuevo) j.viajes.push(obj); else j.viajes=j.viajes.map(x=>x.id===t.id?obj:x);
         recalcPagos(j); save(j); closeModal(); toast('Viaje guardado'); render();
       };
@@ -884,7 +991,9 @@ function tripRow(t, rank, editable, maxRate, showDate){
       <div class="muted">Km ${fmtNum(t.kmIni)} → ${fmtNum(t.kmFin)}${t.acum!=null?' · acumulado '+fmt$0(t.acum):''}</div>
       ${t.comentario? `<div class="muted" style="font-style:italic">💬 ${esc(t.comentario)}</div>`:''}
       ${(()=>{ const en=tripEnergia(t); return t.autIni!=null||t.autFin!=null? `<div class="muted">🔋 Autonomía ${t.autIni??'—'} → ${t.autFin??'—'} km${en?` · consumió ${fmtKm(en.consumo)} · <b class="${colorRend(en.rend)}">${fmtNum(en.rend,0)}%</b>`:''}</div>`:''; })()}
-      <div class="muted">${showDate? fmtFecha(fechaLocal(t.inicio)).replace(/ \d{4}$/,'')+' · ':''}${fmtHora(t.inicio)}–${fmtHora(t.fin)} · ${fmtDur(dur)}${dur>=120000? ' · '+fmt$0(t.pago/(dur/3600000))+'/h':''}</div>
+      <div class="muted">${showDate? fmtFecha(fechaLocal(t.inicio)).replace(/ \d{4}$/,'')+' · ':''}${fmtHora(t.inicio)}–${fmtHora(t.fin)} · ${fmtDur(dur)}${dur>=120000? ' · '+fmt$0(t.pago/(dur/3600000))+'/h · '+fmtNum(velocidad(k,dur),0)+' km/h':''}</div>
+      ${(()=>{ const e=etaInfo(t); return e? `<div style="font-size:13px">⏱ ${fmtNum(e.real,0)} de ${e.est} min estimados · <b class="${e.cls}">${e.icon} ${e.msg}</b></div>`:''; })()}
+      ${t.coordIni||t.coordFin? `<div class="muted" style="font-size:12px">🧭 ${t.coordIni?`<a href="${gmaps(t.coordIni)}" target="_blank" rel="noopener" style="color:var(--accent)">Inicio ${fmtCoord(t.coordIni)}</a> (${zona(t.coordIni)})`:'Inicio —'} → ${t.coordFin?`<a href="${gmaps(t.coordFin)}" target="_blank" rel="noopener" style="color:var(--accent)">Destino ${fmtCoord(t.coordFin)}</a> (${zona(t.coordFin)})`:'Destino —'}</div>`:''}
       ${maxRate? `<div class="bar"><i style="width:${Math.max(3,r/maxRate*100)}%"></i></div>`:''}
     </div>
     <div class="rate">${fmt$(r)}<small>por km</small></div>
@@ -907,8 +1016,14 @@ function resumenCard(j,titulo){
       <div class="kpi"><div class="l">Km con pasajero</div><div class="v">${fmtKm(s.kmViajes)}</div></div>
       <div class="kpi"><div class="l">Km sin pasajero</div><div class="v">${fmtKm(s.kmVacio)}</div></div>
     </div>
+    <div class="kpis" style="margin-top:10px">
+      <div class="kpi"><div class="l">🛣️ Distancia total recorrida</div><div class="v">${fmtKm(s.kmTotal)}</div><div class="d muted">${j.gpsKm? 'GPS midió '+fmtKm(j.gpsKm):'según odómetro'}</div></div>
+      <div class="kpi"><div class="l">🚀 Velocidad promedio</div><div class="v">${fmtNum(velocidad(s.kmTotal,s.ms),1)} km/h</div><div class="d muted">en viajes: ${fmtNum(velocidad(s.kmViajes,s.msViajes),1)} km/h</div></div>
+    </div>
+    ${(()=>{ const es=j.viajes.map(etaInfo).filter(Boolean); if(!es.length) return '';
+      const a=es.filter(e=>e.d>0).length, x=es.filter(e=>e.d===0).length, d=es.filter(e=>e.d<0).length;
+      return `<div class="muted" style="margin-top:8px">⏱ Puntualidad: 🟢 ${a} antes · 🎯 ${x} exactos · 🔴 ${d} después</div>`; })()}
     ${bateriaHtml(j,s)}
-    ${j.gpsKm? `<div class="muted" style="margin-top:8px">Distancia medida por GPS: ${fmtKm(j.gpsKm)}</div>`:''}
   </div>`;
 }
 
@@ -989,10 +1104,10 @@ function renderHistorial(){
 function mostrarTexto(t,txt){ openModal(`<h3>${t}</h3><textarea readonly>${esc(txt)}</textarea><button class="btn" id="cl">Cerrar</button>`, s=>{ s.querySelector('textarea').select(); s.querySelector('#cl').onclick=closeModal; }); }
 const q=x=>x? '"'+String(x).replace(/"/g,'""').replace(/\r?\n/g,' ')+'"' : '';
 function csv(){
-  const rows=[['Fecha','Dia','Viaje','Hora inicio','Hora fin','Km inicio','Km fin','Km','Ganancia acumulada','Pago','Costo por km','Autonomia inicio','Autonomia fin','Autonomia consumida','Rendimiento energia %','Minutos','Origen','Destino','Comentarios']];
+  const rows=[['Fecha','Dia','Viaje','Hora inicio','Hora fin','Km inicio','Km fin','Km','Ganancia acumulada','Pago','Costo por km','Autonomia inicio','Autonomia fin','Autonomia consumida','Rendimiento energia %','Minutos','Origen','Destino','Comentarios','Min estimados','Diferencia min (+antes/-despues)','Lat inicio','Lon inicio','Lat destino','Lon destino']];
   Object.values(jornadas).sort((a,b)=>a.inicio-b.inicio).forEach(j=>j.viajes.slice().sort((a,b)=>a.inicio-b.inicio).forEach(t=>{
     const en=tripEnergia(t);
-    rows.push([j.fecha, DIAS[new Date(t.inicio).getDay()], numViaje(t), fmtHora24(t.inicio), fmtHora24(t.fin), t.kmIni, t.kmFin, tripKm(t).toFixed(1), t.acum??'', t.pago.toFixed(2), tripRate(t).toFixed(2), t.autIni??'', t.autFin??'', en?en.consumo:'', en?en.rend.toFixed(1):'', Math.round((t.fin-t.inicio)/60000), q(t.origen), q(t.destino), q(t.comentario)]);
+    rows.push([j.fecha, DIAS[new Date(t.inicio).getDay()], numViaje(t), fmtHora24(t.inicio), fmtHora24(t.fin), t.kmIni, t.kmFin, tripKm(t).toFixed(1), t.acum??'', t.pago.toFixed(2), tripRate(t).toFixed(2), t.autIni??'', t.autFin??'', en?en.consumo:'', en?en.rend.toFixed(1):'', Math.round((t.fin-t.inicio)/60000), q(t.origen), q(t.destino), q(t.comentario), t.minEst??'', etaInfo(t)?.d??'', t.coordIni?.lat??'', t.coordIni?.lon??'', t.coordFin?.lat??'', t.coordFin?.lon??'']);
   }));
   return rows.map(r=>r.join(',')).join('\n');
 }
