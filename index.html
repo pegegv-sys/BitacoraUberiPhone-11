@@ -386,14 +386,14 @@ function startGPS(){
         if(d>=0.015 && d<2){ // filtra ruido y saltos
           const j=jornadaActiva();
           if(j){ j.gpsKm=(j.gpsKm||0)+d; if(j.viajeActivo) j.viajeActivo.gpsKm=(j.viajeActivo.gpsKm||0)+d;
-            jornadas[j.id]=j; saveLocal();
+            registrarPunto(j,pt); jornadas[j.id]=j; saveLocal();
             clearTimeout(gpsSaveT); gpsSaveT=setTimeout(()=>{ const jj=jornadaActiva(); if(jj) save(jj); },60000);
           }
           gpsLast=pt;
         }
-      } else gpsLast=pt;
+      } else { gpsLast=pt; const j=jornadaActiva(); if(j){ registrarPunto(j,pt); saveLocal(); } }
       updateGpsUI();
-    }, err=>{ gpsState='err'; updateGpsUI(); stopGPS(); }, {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
+    }, err=>{ window._gpsErr=err&&err.code; if(err && err.code===1){ gpsState='err'; updateGpsUI(); stopGPS(); } else { if(gpsState!=='on') gpsState='off'; updateGpsUI(); } }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
   }catch(e){ gpsState='err'; }
 }
 function stopGPS(){ if(gpsWatch!==null){ try{navigator.geolocation.clearWatch(gpsWatch);}catch(e){} } gpsWatch=null; gpsLast=null; }
@@ -559,7 +559,8 @@ function actualizarEnVivo(){
     const av=$('#avance'); if(av && !$('#np.open')) av.innerHTML=avanceHTML(j);
   }
   const cl=$('#cargaLive'); const ca=cargaActiva(); if(cl && ca) cl.innerHTML=cargaLiveHTML(ca);
-  const mb=$('#mapaBox'); if(mb && ultimaPos && mb.dataset.ts!=String(ultimaPos.ts)){ mb.dataset.ts=ultimaPos.ts; mb.innerHTML=mapaCDMX(ultimaPos, puntosDelDia(jornadaActiva())); }
+  const mb=$('#mapaBox'); if(mb && ultimaPos && mb.dataset.ts!=String(ultimaPos.ts)){ mb.dataset.ts=ultimaPos.ts; mb.innerHTML=mapaDeJornada(jornadaActiva(), ultimaPos);
+    const mt=$('#mapaTxt'); if(mt) mt.innerHTML=`Estás en <b>${zona(ultimaPos)}</b> · <span class="muted">${fmtCoord(ultimaPos)} (±${ultimaPos.acc} m) · ${fmtHora(ultimaPos.ts)}</span> · <a href="${gmaps(ultimaPos)}" target="_blank" rel="noopener" style="color:var(--accent)">Abrir en Google Maps</a>`; }
 }
 
 let wakeLock=null;
@@ -693,10 +694,45 @@ function enPoligono(lon,lat,poly){ let d=false; for(let i=0,k=poly.length-1;i<po
 function alcaldiaDe(c){ if(!c) return null; const a=CDMX_ALCALDIAS.find(a=>a.p.some(p=>enPoligono(c.lon,c.lat,p))); return a? a.n : null; }
 const zona = c => alcaldiaDe(c) || 'Fuera de la CDMX';
 
-function mapaCDMX(pos, puntos){
-  const W=360, H=420, pad=12, k0=Math.cos(19.4*Math.PI/180);
+/* ---- Recorridos GPS ---- */
+const COLORES_RUTA=['#3987e5','#e2622a','#2fbf71','#b07ce8','#f5d33f','#e66767','#36c2c2','#f08cc0'];
+function registrarPunto(j,pt){
+  const p=[+(+pt.lat).toFixed(5), +(+pt.lon).toFixed(5)];
+  const arr = j.viajeActivo? (j.viajeActivo.ruta=j.viajeActivo.ruta||[]) : (j.libreActual=j.libreActual||[]);
+  const u=arr[arr.length-1]; if(u && u[0]===p[0] && u[1]===p[1]) return;
+  arr.push(p);
+}
+function simplificarRuta(pts,eps=0.00004){   // Douglas-Peucker: quita puntos sobrantes y conserva vueltas y curvas
+  if(!pts || pts.length<3) return pts||[];
+  const keep=new Uint8Array(pts.length); keep[0]=keep[pts.length-1]=1;
+  const pila=[[0,pts.length-1]];
+  while(pila.length){ const [i0,i1]=pila.pop(); const [ay,ax]=pts[i0],[by,bx]=pts[i1]; const L=Math.hypot(bx-ax,by-ay); let dm=0,ix=-1;
+    for(let i=i0+1;i<i1;i++){ const [py,px]=pts[i]; const d= L>0? Math.abs((by-ay)*px-(bx-ax)*py+bx*ay-by*ax)/L : Math.hypot(px-ax,py-ay); if(d>dm){dm=d;ix=i;} }
+    if(dm>eps){ keep[ix]=1; pila.push([i0,ix],[ix,i1]); } }
+  return pts.filter((_,i)=>keep[i]);
+}
+function cerrarTramoLibre(j){
+  if(j.libreActual && j.libreActual.length>1){ (j.rutasLibres=j.rutasLibres||[]).push(simplificarRuta(j.libreActual)); }
+  j.libreActual = j.libreActual && j.libreActual.length? [j.libreActual[j.libreActual.length-1]] : [];
+}
+function rutasDeJornada(j){
+  const r=[]; if(!j) return r;
+  (j.rutasLibres||[]).forEach(p=>r.push({pts:p,tipo:'libre'}));
+  if(j.libreActual && j.libreActual.length>1) r.push({pts:j.libreActual,tipo:'libre'});
+  j.viajes.slice().sort((a,b)=>a.inicio-b.inicio).forEach((t,i)=>{ if(t.ruta && t.ruta.length>1) r.push({pts:t.ruta,tipo:'viaje',n:i+1,color:COLORES_RUTA[i%COLORES_RUTA.length]}); });
+  if(j.viajeActivo?.ruta?.length>1){ const i=j.viajes.length; r.push({pts:j.viajeActivo.ruta,tipo:'viaje',n:i+1,color:COLORES_RUTA[i%COLORES_RUTA.length],activo:true}); }
+  return r;
+}
+let mapaModo='auto';   // auto | cdmx | ruta
+function mapaCDMX(pos, puntos, rutas=[], acercar=false){
+  const W=360, H=420, pad=14, k0=Math.cos(19.4*Math.PI/180);
   let minLon=-99.3649, maxLon=-98.9403, minLat=19.0482, maxLat=19.5928;
-  [pos,...puntos].filter(Boolean).forEach(c=>{ minLon=Math.min(minLon,c.lon-0.01); maxLon=Math.max(maxLon,c.lon+0.01); minLat=Math.min(minLat,c.lat-0.01); maxLat=Math.max(maxLat,c.lat+0.01); });
+  const todos=[...rutas.flatMap(r=>r.pts.map(([lat,lon])=>({lat,lon}))), ...puntos, ...(pos?[pos]:[])];
+  if(acercar && todos.length){
+    minLon=Math.min(...todos.map(c=>c.lon)); maxLon=Math.max(...todos.map(c=>c.lon)); minLat=Math.min(...todos.map(c=>c.lat)); maxLat=Math.max(...todos.map(c=>c.lat));
+    const m=0.006, cx=(minLon+maxLon)/2, cy=(minLat+maxLat)/2, hx=Math.max((maxLon-minLon)/2+m,0.012), hy=Math.max((maxLat-minLat)/2+m,0.012);
+    minLon=cx-hx; maxLon=cx+hx; minLat=cy-hy; maxLat=cy+hy;
+  } else todos.forEach(c=>{ minLon=Math.min(minLon,c.lon-0.01); maxLon=Math.max(maxLon,c.lon+0.01); minLat=Math.min(minLat,c.lat-0.01); maxLat=Math.max(maxLat,c.lat+0.01); });
   const sx=(W-2*pad)/((maxLon-minLon)*k0), sy=(H-2*pad)/(maxLat-minLat), s=Math.min(sx,sy);
   const ox=(W-(maxLon-minLon)*k0*s)/2, oy=(H-(maxLat-minLat)*s)/2;
   const X=lon=>ox+(lon-minLon)*k0*s, Y=lat=>oy+(maxLat-lat)*s;
@@ -705,13 +741,35 @@ function mapaCDMX(pos, puntos){
   CDMX_ALCALDIAS.forEach(a=>{ const on=a.n===actual;
     a.p.forEach(p=>{ g+=`<path d="M${p.map(([x,y])=>X(x).toFixed(1)+','+Y(y).toFixed(1)).join('L')}Z" fill="${on?'#1d3b5c':'#222220'}" stroke="${on?'#3987e5':'#55554f'}" stroke-width="${on?2:1}"/>`; }); });
   const corto={'Gustavo A. Madero':'GAM','Venustiano Carranza':'V. Carranza','Cuajimalpa de Morelos':'Cuajimalpa','La Magdalena Contreras':'Magdalena C.','Álvaro Obregón':'Á. Obregón','Benito Juárez':'B. Juárez','Miguel Hidalgo':'M. Hidalgo'};
-  CDMX_ALCALDIAS.forEach(a=>{ const p=a.p.reduce((m,x)=>x.length>m.length?x:m,a.p[0]); const cx=p.reduce((s,q)=>s+q[0],0)/p.length, cy=p.reduce((s,q)=>s+q[1],0)/p.length;
-    g+=`<text x="${X(cx).toFixed(1)}" y="${Y(cy).toFixed(1)}" text-anchor="middle" font-size="9" fill="${a.n===actual?'#f0efec':'#8d8c84'}" font-weight="${a.n===actual?700:400}">${corto[a.n]||a.n}</text>`; });
-  puntos.forEach(c=>{ g+=`<circle cx="${X(c.lon).toFixed(1)}" cy="${Y(c.lat).toFixed(1)}" r="4" fill="${c.tipo==='ini'?'#3987e5':'#2fbf71'}" stroke="#121211" stroke-width="1.5"/>`; });
+  CDMX_ALCALDIAS.forEach(a=>{ const p=a.p.reduce((m,x)=>x.length>m.length?x:m,a.p[0]); const cx=p.reduce((t,q)=>t+q[0],0)/p.length, cy=p.reduce((t,q)=>t+q[1],0)/p.length;
+    g+=`<text x="${X(cx).toFixed(1)}" y="${Y(cy).toFixed(1)}" text-anchor="middle" font-size="${acercar?11:9}" fill="${a.n===actual?'#f0efec':'#8d8c84'}" font-weight="${a.n===actual?700:400}">${corto[a.n]||a.n}</text>`; });
+  // recorridos: primero los tramos sin pasajero, luego los viajes
+  const linea=pts=>'M'+pts.map(([lat,lon])=>X(lon).toFixed(1)+','+Y(lat).toFixed(1)).join('L');
+  rutas.filter(r=>r.tipo==='libre').forEach(r=>{ g+=`<path d="${linea(r.pts)}" fill="none" stroke="#8d8c84" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>`; });
+  rutas.filter(r=>r.tipo==='viaje').forEach(r=>{
+    g+=`<path d="${linea(r.pts)}" fill="none" stroke="#121211" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`;
+    g+=`<path d="${linea(r.pts)}" fill="none" stroke="${r.color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    const [la,lo]=r.pts[0], [lb,lb2]=r.pts[r.pts.length-1];
+    g+=`<circle cx="${X(lo).toFixed(1)}" cy="${Y(la).toFixed(1)}" r="5" fill="#121211" stroke="${r.color}" stroke-width="2.5"/>`;
+    if(!r.activo) g+=`<circle cx="${X(lb2).toFixed(1)}" cy="${Y(lb).toFixed(1)}" r="8" fill="${r.color}" stroke="#121211" stroke-width="1.5"/><text x="${X(lb2).toFixed(1)}" y="${(Y(lb)+3.5).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="800" fill="#121211">${r.n}</text>`;
+  });
+  puntos.filter(c=>!rutas.some(r=>r.tipo==='viaje')).forEach(c=>{ g+=`<circle cx="${X(c.lon).toFixed(1)}" cy="${Y(c.lat).toFixed(1)}" r="4" fill="${c.tipo==='ini'?'#3987e5':'#2fbf71'}" stroke="#121211" stroke-width="1.5"/>`; });
   if(pos){ const px=X(pos.lon), py=Y(pos.lat);
     g+=`<circle cx="${px}" cy="${py}" r="16" fill="#3987e5" opacity=".25"><animate attributeName="r" values="10;20;10" dur="2s" repeatCount="indefinite"/></circle>`;
     g+=`<g transform="translate(${px-17},${py-16}) scale(.78)">${CARRO}</g>`; }
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:520px;display:block;margin:0 auto" role="img" aria-label="Mapa de la Ciudad de México${actual?', estás en '+actual:''}">${g}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:520px;display:block;margin:0 auto;background:#161615;border-radius:12px" role="img" aria-label="Mapa de la Ciudad de México${actual?', estás en '+actual:''}"><defs><clipPath id="mclip"><rect width="${W}" height="${H}" rx="12"/></clipPath></defs><g clip-path="url(#mclip)">${g}</g></svg>`;
+}
+function mapaDeJornada(j, pos){
+  const rutas=rutasDeJornada(j);
+  const acercar = mapaModo==='ruta' || (mapaModo==='auto' && rutas.length>0);
+  return mapaCDMX(pos, puntosDelDia(j), rutas, acercar);
+}
+function leyendaRutas(j){
+  const rutas=rutasDeJornada(j).filter(r=>r.tipo==='viaje');
+  if(!rutas.length) return '';
+  return `<div class="legend" style="margin-top:6px">${rutas.map(r=>{ const t=r.activo? j.viajeActivo : j.viajes.slice().sort((a,b)=>a.inicio-b.inicio)[r.n-1];
+      const de=t?.coordIni? zona(t.coordIni) : '', a=t?.coordFin? zona(t.coordFin) : (r.activo?'en curso':'');
+      return `<span style="--c:${r.color}">Viaje ${r.n}${de?': '+de+(a?' → '+a:''):''}</span>`; }).join('')}${(j.rutasLibres||[]).length||((j.libreActual||[]).length>1)?'<span style="--c:#8d8c84">Sin pasajero (punteado)</span>':''}</div>`;
 }
 function puntosDelDia(j){
   const r=[]; if(!j) return r;
@@ -722,12 +780,16 @@ function puntosDelDia(j){
 function mapaCardHTML(j){
   const pos=ultimaPos;
   return `<div class="card"><h2>🗺️ ¿Dónde está el coche?</h2>
-    <div id="mapaBox">${mapaCDMX(pos, puntosDelDia(j))}</div>
-    <div style="margin-top:8px;font-size:15px">${pos? `Estás en <b>${zona(pos)}</b> · <span class="muted">${fmtCoord(pos)} (±${pos.acc} m) · ${fmtHora(pos.ts)}</span> · <a href="${gmaps(pos)}" target="_blank" rel="noopener" style="color:var(--accent)">Abrir en Google Maps</a>`:'<span class="muted">Toca «Obtener ubicación» para ver en qué zona estás.</span>'}</div>
-    ${puntosDelDia(j).length?'<div class="legend" style="margin-top:6px"><span style="--c:#3987e5">Inicio de viaje</span><span style="--c:#2fbf71">Destino de viaje</span></div>':''}
+    <div class="seg" id="mapaModo" style="margin-bottom:8px"><button data-m="ruta" class="${mapaModo!=='cdmx'?'on':''}">🔍 Acercar a recorridos</button><button data-m="cdmx" class="${mapaModo==='cdmx'?'on':''}">CDMX completa</button></div>
+    <div id="mapaBox">${mapaDeJornada(j,pos)}</div>
+    ${leyendaRutas(j||{viajes:[]})}
+    <div id="mapaTxt" style="margin-top:8px;font-size:15px">${pos? `Estás en <b>${zona(pos)}</b> · <span class="muted">${fmtCoord(pos)} (±${pos.acc} m) · ${fmtHora(pos.ts)}</span> · <a href="${gmaps(pos)}" target="_blank" rel="noopener" style="color:var(--accent)">Abrir en Google Maps</a>`:'<span class="muted">Toca «Obtener ubicación» para ver en qué zona estás.</span>'}</div>
+    ${puntosDelDia(j).length && !rutasDeJornada(j).some(r=>r.tipo==='viaje')?'<div class="legend" style="margin-top:6px"><span style="--c:#3987e5">Inicio de viaje</span><span style="--c:#2fbf71">Destino de viaje</span></div>':''}
+    ${j && !rutasDeJornada(j).length?'<div class="muted" style="font-size:12px;margin-top:6px">El recorrido se dibuja mientras la app está abierta con el GPS activo.</div>':''}
     <button class="btn go" id="btnUbic" style="padding:16px">📍 Obtener ubicación</button>
     <div class="muted" style="font-size:11px;margin-top:6px">Límites de alcaldías: INEGI, Marco Geoestadístico. El mapa funciona sin internet.</div></div>`;
 }
+function conectarMapaModo(){ const m=$('#mapaModo'); if(m) m.onclick=e=>{ const b=e.target.closest('[data-m]'); if(!b) return; mapaModo=b.dataset.m; render(); }; }
 async function accionUbicacion(j){
   const btn=$('#btnUbic'); if(btn){ btn.disabled=true; btn.textContent='Buscando señal GPS…'; }
   try{
@@ -785,6 +847,7 @@ async function flujoIniciarViaje(j){
   const c=await askNumber({paso:3,total:4,titulo:`Viaje #${n}: distancia al destino`,ayuda:'Los km que te indica Uber para este viaje (para el avance A → B)',unidad:'km',opcional:true,placeholder:'Ej. 12',validar:v=>v<=0?'Debe ser mayor a 0':null}); if(!c) return;
   const d=await askNumber({paso:4,total:4,titulo:`Viaje #${n}: tiempo estimado`,ayuda:'Minutos que indica Uber para llegar (se usa si no hay GPS)',unidad:'min',decimales:false,opcional:true,placeholder:'Ej. 25',validar:v=>v<=0?'Debe ser mayor a 0':null,okText:'▶ Iniciar viaje'}); if(!d) return;
   j.viajeActivo={id:uid(), inicio:Date.now(), kmIni:a.valor, autIni:b.omitido?null:b.valor, gpsKm:0, distEst:c.omitido?null:c.valor, minEst:d.omitido?null:d.valor}; save(j); render();
+  cerrarTramoLibre(j); j.viajeActivo.ruta = ultimaPos && Date.now()-ultimaPos.ts<120000? [[+ultimaPos.lat.toFixed(5),+ultimaPos.lon.toFixed(5)]] : []; save(j);
   const vid=j.viajeActivo.id;
   obtenerUbicacion().then(cc=>{ if(j.viajeActivo && j.viajeActivo.id===vid && !j.viajeActivo.coordIni){ j.viajeActivo.coordIni=cc; save(j); render(); } }).catch(()=>{});
 }
@@ -815,9 +878,11 @@ async function flujoTerminarViaje(j){
     okText:'✔ Guardar viaje'}); if(!c) return;
   const p=pagoDe(c.valor,c.modo);
   const trip={id:va.id, inicio:va.inicio, fin:finTs, distEst:va.distEst??null, minEst:va.minEst??null, kmIni:va.kmIni, kmFin:a.valor, autIni:va.autIni??null, autFin:af, pago:r2(p), acum: c.modo==='acum'? c.valor : null, gpsKm:va.gpsKm||0, coordIni:va.coordIni||null, coordFin:null};
+  trip.ruta = simplificarRuta(va.ruta||[]);
+  j.libreActual = trip.ruta.length? [trip.ruta[trip.ruta.length-1]] : [];
   j.viajes.push(trip);
   recalcPagos(j); j.viajeActivo=null; save(j); toast('Viaje #'+n+': '+fmt$(p)+' · '+fmt$(p/k)+'/km · duró '+fmtCrono(finTs-va.inicio)+(eta?' · '+eta.msg:'')); render();
-  ubiFin.then(cc=>{ if(cc){ const t=j.viajes.find(x=>x.id===trip.id); if(t){ t.coordFin=cc; save(j); render(); } } });
+  ubiFin.then(cc=>{ if(cc){ const t=j.viajes.find(x=>x.id===trip.id); if(t){ t.coordFin=cc; const pf=[+cc.lat.toFixed(5),+cc.lon.toFixed(5)]; if(t.ruta && t.ruta.length) t.ruta.push(pf); save(j); render(); } } });
 }
 async function flujoCarga(j){
   if(j.batIni==null){
@@ -839,6 +904,7 @@ async function flujoTerminarJornada(j){
   if(bi==null){ const r=await askNumber({paso:2,total:T,titulo:'Batería al iniciar la jornada',ayuda:'No la registraste al empezar',unidad:'%',decimales:false,opcional:true,validar:v=>v>100?'Máximo 100%':null}); if(!r) return; bi=r.omitido?null:r.valor; }
   const b=await askNumber({paso:T,total:T,titulo:'Batería al terminar',ayuda:'Porcentaje de carga que te queda',unidad:'%',decimales:false,opcional:true,placeholder:'Ej. 35',
     validar:v=>v>100?'Máximo 100%':null, okText:'✔ Cerrar jornada'}); if(!b) return;
+  cerrarTramoLibre(j); j.libreActual=[];
   j.batIni=bi; j.batFin=b.omitido?null:b.valor; j.kmFinal=a.valor; j.fin=Date.now(); j.estado='cerrada'; save(j); stopGPS();
   openModal(resumenCard(j,'Resumen de la jornada')+'<button class="btn go" id="carg">🔌 Iniciar carga de batería</button><button class="btn sec2" id="cl">Listo</button>', s3=>{
     s3.querySelector('#cl').onclick=closeModal; s3.querySelector('#carg').onclick=()=>{ closeModal(); flujoIniciarCargaS(); }; });
@@ -860,7 +926,7 @@ function renderJornada(){
       ${ult? resumenCard(ult,'Última jornada') : '<div class="card empty">Aún no hay jornadas registradas.</div>'}`;
     $('#btnIniciar').onclick=()=>flujoIniciarJornada(ult);
     conectarCargaCard();
-    $('#btnUbic').onclick=()=>accionUbicacion(null);
+    $('#btnUbic').onclick=()=>accionUbicacion(null); conectarMapaModo();
     clearInterval(tick); tick=setInterval(actualizarEnVivo,1000);
     return;
   }
@@ -923,7 +989,7 @@ function renderJornada(){
     $('#btnCancelViaje').onclick=()=>confirmar('¿Cancelar el viaje en curso? No se guardará.',()=>{ j.viajeActivo=null; save(j); render(); },'Cancelar viaje');
   }
   $('#btnFinJornada').onclick=()=>{ if(va){ toast('Primero termina el viaje en curso'); return; } flujoTerminarJornada(j); };
-  $('#btnUbic').onclick=()=>accionUbicacion(j);
+  $('#btnUbic').onclick=()=>accionUbicacion(j); conectarMapaModo();
   $('#btnBorrarJ').onclick=()=>confirmar('¿Descartar esta jornada y todos sus viajes?',()=>{ removeJornada(j.id); render(); },'Descartar');
 }
 
@@ -1065,7 +1131,7 @@ function renderHistorial(){
     </div>`;
   v.querySelectorAll('[data-j]').forEach(d=>d.onclick=()=>{ const j=jornadas[d.dataset.j];
     const viajes=[...j.viajes].sort((a,b)=>tripRate(b)-tripRate(a)); const mx=viajes.length?tripRate(viajes[0]):0;
-    openModal(resumenCard(j,'Detalle')+`<div class="card"><h2>Viajes (mejor a peor $/km) · ✎ para editar</h2>${viajes.map((t,i)=>tripRow(t,i+1,true,mx)).join('')||'<div class="empty">Sin viajes</div>'}</div>
+    openModal(resumenCard(j,'Detalle')+(rutasDeJornada(j).length? `<div class="card"><h2>🗺️ Recorridos del día</h2>${mapaCDMX(null,puntosDelDia(j),rutasDeJornada(j),true)}${leyendaRutas(j)}</div>`:'')+`<div class="card"><h2>Viajes (mejor a peor $/km) · ✎ para editar</h2>${viajes.map((t,i)=>tripRow(t,i+1,true,mx)).join('')||'<div class="empty">Sin viajes</div>'}</div>
       <button class="btn sec2 small" id="ebat">🔋 Editar datos de batería</button>
       ${j.estado==='cerrada'?'<button class="btn sec2 small" id="reab">Reabrir jornada para corregir</button><button class="btn danger small" id="delj">Eliminar jornada</button>':''}
       <button class="btn" id="cl">Cerrar</button>`, s=>{
