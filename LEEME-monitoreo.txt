@@ -1,0 +1,60 @@
+BITÁCORA UBER · MONITOREO EN COMPUTADORA (WINDOWS 11)
+=====================================================
+
+Se configura una sola vez. Toma unos 10 minutos.
+
+A) CREAR LA BASE DE DATOS GRATUITA (Firebase, de Google) — en la computadora
+-----------------------------------------------------------------------------
+1. Entra a https://console.firebase.google.com con tu cuenta de Google.
+2. "Crear un proyecto" → nombre: bitacora-uber → Continuar.
+   Desactiva Google Analytics (no se necesita) → Crear proyecto.
+3. En el menú de la izquierda: Compilación (Build) → Realtime Database
+   → "Crear base de datos".
+   - Ubicación: Estados Unidos (us-central1).
+   - Modo: "Comenzar en modo bloqueado" → Habilitar.
+4. Pestaña "Reglas": borra todo, pega el contenido del archivo
+   reglas-firebase.json y toca "Publicar".
+5. Pestaña "Datos": copia la dirección que aparece arriba. Se ve así:
+   https://bitacora-uber-xxxxx-default-rtdb.firebaseio.com
+   (Mándatela al teléfono por WhatsApp o correo.)
+
+El plan gratuito (Spark) alcanza de sobra: la Bitácora manda unos pocos
+kilobytes por minuto.
+
+B) SUBIR LOS ARCHIVOS A GITHUB
+------------------------------
+Sube TODOS los archivos de este zip a tu repositorio "bitacora"
+(Add file → Upload files), reemplazando los anteriores. Incluye el nuevo
+monitor.html.
+
+C) ACTIVAR EN EL TELÉFONO (iPhone 11 o Moto G34, versión instalada)
+--------------------------------------------------------------------
+1. Abre la Bitácora desde su ícono → pestaña Historial
+   → tarjeta "📡 Monitoreo en computadora".
+2. Pega la dirección de Firebase → "Activar monitoreo".
+3. Toca "📋 Copiar enlace" y mándatelo a la computadora
+   (WhatsApp Web, correo, etc.).
+
+D) ABRIR EN LA COMPUTADORA
+--------------------------
+Abre ese enlace en Chrome o Edge. La computadora lo recuerda: después
+basta con abrir https://TU-USUARIO.github.io/bitacora/monitor.html
+
+QUÉ VAS A VER
+-------------
+- Mapa de calles con el coche en vivo y el recorrido del día
+  (cada viaje en su color, tramos sin pasajero en gris punteado).
+- Estado: en viaje / buscando pasaje / sin jornada / cargando.
+- Viaje en curso: cronómetro, avance y tiempo contra lo estimado.
+- Jornada: ganancia, tiempo, viajes, $/km, km.
+- Selector de días anteriores (se guardan al terminar cada jornada).
+
+IMPORTANTE
+----------
+- El teléfono manda datos solo mientras la Bitácora está abierta en
+  pantalla. Si usas Uber Driver o bloqueas la pantalla, la computadora
+  muestra la última ubicación conocida y un aviso.
+- El enlace funciona como contraseña: quien lo tenga puede ver tu
+  ubicación. No lo compartas. Si se filtra, en el teléfono toca
+  "Cambiar clave" y vuelve a copiar el enlace.
+- Para dejar de enviar: "Desactivar monitoreo" en el teléfono.

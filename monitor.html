@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#121211">
+<meta name="robots" content="noindex">
+<title>Monitor · Bitácora Uber</title>
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+:root{color-scheme:dark;--bg:#121211;--s1:#1a1a19;--s2:#242422;--line:#33332f;--t1:#f0efec;--t2:#c3c2b7;--t3:#8d8c84;--blue:#3987e5;--good:#2fbf71;--bad:#e66767;--warn:#f0a830}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--t1);font-family:"Segoe UI",system-ui,sans-serif}
+header{height:58px;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--s1)}
+header h1{font-size:18px;margin:0;font-weight:700;white-space:nowrap}
+.pill{padding:5px 11px;border-radius:99px;font-size:13px;font-weight:600;background:var(--s2);color:var(--t2);white-space:nowrap}
+.pill.on{background:#14402a;color:#9fe0bd}.pill.off{background:#4a1f1f;color:#f3b0b0}.pill.warn{background:#4a3a14;color:#f5d58a}
+header .sp{flex:1}
+header select,header button{background:var(--s2);color:var(--t1);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px;font-family:inherit;cursor:pointer}
+#app{display:grid;grid-template-columns:1fr 400px;height:calc(100% - 58px)}
+#map{height:100%;background:#1b1b1a}
+aside{overflow:auto;border-left:1px solid var(--line);padding:14px;background:var(--bg)}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h2{margin:0 0 10px;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--t2)}
+.big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums}
+.kp{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.k{background:var(--s2);border-radius:10px;padding:9px 11px}
+.k .l{font-size:12px;color:var(--t3)}.k .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.muted{color:var(--t3);font-size:13px}.sec{color:var(--t2)}
+.up{color:var(--good)}.down{color:var(--bad)}
+.estado{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--t3)}
+.trip{display:flex;gap:10px;padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px}
+.trip:hover{background:var(--s2)}.trip:last-child{border-bottom:0}
+.trip .n{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#121211;flex:none}
+.trip .m{flex:1;min-width:0}.trip .r{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--s2);overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--blue)}
+#setup{max-width:560px;margin:60px auto;padding:0 18px}
+#setup textarea{width:100%;min-height:110px;background:var(--s2);color:var(--t1);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:14px;font-family:inherit}
+.btn{display:inline-block;background:var(--blue);color:#fff;border:0;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px}
+.aviso{background:#4a3a14;color:#f5d58a;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.car-ic{filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+.pulse{width:44px;height:44px;border-radius:50%;background:rgba(57,135,229,.25);position:absolute;left:-2px;top:-12px;animation:pl 2s infinite}
+@keyframes pl{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.4);opacity:0}}
+.oscuro .leaflet-tile{filter:brightness(.62) invert(1) contrast(2.6) hue-rotate(200deg) saturate(.35) brightness(.75)}
+.leaflet-container{font-family:inherit}
+.lbl{background:#121211;color:#fff;border:0;border-radius:6px;padding:2px 6px;font-weight:700;font-size:12px;box-shadow:none}
+.lbl:before{display:none}
+@media (max-width:900px){#app{grid-template-columns:1fr;grid-template-rows:55vh auto;height:auto}#map{height:55vh}aside{border-left:0}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚗 Bitácora Uber · Monitor</h1>
+  <span class="pill" id="pill">Conectando…</span>
+  <span class="sp"></span>
+  <select id="dia" title="Día a mostrar"><option value="hoy">Hoy (en vivo)</option></select>
+  <button id="seguir" title="Centrar el mapa en el coche">🎯 Seguir coche: sí</button>
+  <button id="tema" title="Cambiar estilo del mapa">🌙 Mapa oscuro</button>
+  <button id="salir" title="Olvidar este enlace en esta computadora">⏏</button>
+</header>
+<div id="setup" hidden>
+  <h2>Conectar con tu Bitácora</h2>
+  <p class="sec">En tu teléfono abre la Bitácora → <b>Historial</b> → <b>📡 Monitoreo en computadora</b> → <b>Copiar enlace</b>. Abre ese enlace aquí, o pégalo abajo.</p>
+  <textarea id="codigo" placeholder="Pega aquí el enlace del monitor"></textarea>
+  <button class="btn" id="conectar">Conectar</button>
+  <p class="muted" id="setupErr"></p>
+</div>
+<div id="app" hidden>
+  <div id="map"></div>
+  <aside id="panel"></aside>
+</div>
+<script>
+const CDMX_ALCALDIAS=[{"n":"Azcapotzalco","p":[[[-99.2043,19.515],[-99.1823,19.5075],[-99.1771,19.5062],[-99.173,19.5086],[-99.1569,19.5027],[-99.1431,19.4651],[-99.1506,19.4629],[-99.1587,19.4639],[-99.1629,19.4593],[-99.1637,19.4564],[-99.1885,19.4608],[-99.188,19.4638],[-99.1907,19.4647],[-99.191,19.4706],[-99.201,19.4734],[-99.2068,19.4712],[-99.2211,19.4751],[-99.2102,19.5111],[-99.2043,19.515]]]},{"n":"Benito Juárez","p":[[[-99.1468,19.404],[-99.1374,19.4035],[-99.1366,19.4028],[-99.1372,19.3992],[-99.1309,19.399],[-99.1398,19.3569],[-99.1698,19.3587],[-99.1731,19.3604],[-99.1777,19.3651],[-99.1798,19.363],[-99.1837,19.3617],[-99.1911,19.3635],[-99.1921,19.3734],[-99.1917,19.3827],[-99.1884,19.3932],[-99.1891,19.3956],[-99.1755,19.3981],[-99.157,19.404],[-99.1468,19.404]]]},{"n":"Coyoacán","p":[[[-99.1717,19.3596],[-99.1692,19.3586],[-99.1343,19.3565],[-99.1312,19.3587],[-99.122,19.3577],[-99.1208,19.3518],[-99.1156,19.3433],[-99.1129,19.3354],[-99.1057,19.3263],[-99.0992,19.3209],[-99.1009,19.3],[-99.1092,19.2996],[-99.1168,19.3014],[-99.1347,19.3083],[-99.1426,19.2996],[-99.1474,19.3013],[-99.1516,19.298],[-99.1567,19.2968],[-99.159,19.2997],[-99.1623,19.3013],[-99.1793,19.3034],[-99.1951,19.3021],[-99.2058,19.3057],[-99.2002,19.3112],[-99.2012,19.312],[-99.1949,19.322],[-99.1947,19.3302],[-99.1963,19.3336],[-99.1998,19.3335],[-99.1981,19.3355],[-99.1912,19.3369],[-99.184,19.3436],[-99.1829,19.3466],[-99.1806,19.3472],[-99.1799,19.3496],[-99.173,19.3568],[-99.1717,19.3596]]]},{"n":"Cuajimalpa de Morelos","p":[[[-99.2577,19.4047],[-99.2583,19.4027],[-99.257,19.4004],[-99.2556,19.4031],[-99.2553,19.3987],[-99.2564,19.3965],[-99.2596,19.3943],[-99.2593,19.3926],[-99.2548,19.3937],[-99.2548,19.3952],[-99.2526,19.3935],[-99.247,19.3942],[-99.2485,19.3904],[-99.2477,19.386],[-99.2614,19.3758],[-99.2702,19.3726],[-99.2698,19.3714],[-99.2684,19.3718],[-99.2684,19.3687],[-99.2651,19.3717],[-99.2667,19.3678],[-99.2668,19.3635],[-99.2613,19.361],[-99.2593,19.3502],[-99.2582,19.3497],[-99.2611,19.3478],[-99.259,19.3481],[-99.2631,19.3468],[-99.2684,19.3419],[-99.2812,19.3374],[-99.2802,19.3352],[-99.285,19.3365],[-99.2875,19.3311],[-99.2867,19.3298],[-99.2883,19.3307],[-99.288,19.3335],[-99.2913,19.3292],[-99.2908,19.3266],[-99.2917,19.3242],[-99.2906,19.3215],[-99.2931,19.3205],[-99.2948,19.3169],[-99.2965,19.3172],[-99.3005,19.3223],[-99.3018,19.3183],[-99.3,19.314],[-99.3013,19.3095],[-99.3033,19.3111],[-99.3059,19.3072],[-99.3074,19.3079],[-99.3088,19.3051],[-99.3102,19.3076],[-99.3116,19.3068],[-99.314,19.3014],[-99.3164,19.3001],[-99.3171,19.2934],[-99.3157,19.2899],[-99.3167,19.2861],[-99.3157,19.2822],[-99.3174,19.2749],[-99.3236,19.2651],[-99.3243,19.2326],[-99.3267,19.2326],[-99.3308,19.2379],[-99.3423,19.2411],[-99.3399,19.2597],[-99.3376,19.264],[-99.3392,19.2677],[-99.3447,19.2695],[-99.3482,19.274],[-99.3619,19.2757],[-99.3649,19.2778],[-99.3536,19.2919],[-99.3545,19.2933],[-99.3515,19.2942],[-99.3535,19.2974],[-99.35,19.2968],[-99.3563,19.302],[-99.3566,19.3067],[-99.3338,19.3306],[-99.3312,19.3398],[-99.3283,19.3452],[-99.3285,19.3531],[-99.3274,19.3541],[-99.3264,19.3537],[-99.3233,19.3583],[-99.3181,19.3582],[-99.3207,19.3604],[-99.3195,19.3636],[-99.3169,19.3663],[-99.3154,19.3659],[-99.3131,19.3704],[-99.3078,19.3716],[-99.3035,19.3778],[-99.3013,19.3771],[-99.3012,19.3697],[-99.299,19.3675],[-99.2979,19.3693],[-99.2956,19.3691],[-99.2906,19.375],[-99.2886,19.3751],[-99.2877,19.3767],[-99.2857,19.3764],[-99.285,19.3791],[-99.2828,19.3814],[-99.28,19.3823],[-99.2737,19.387],[-99.2724,19.3897],[-99.2696,19.3904],[-99.2682,19.3924],[-99.2671,19.3921],[-99.2617,19.396],[-99.2611,19.3996],[-99.2591,19.4015],[-99.2577,19.4047]]]},{"n":"Cuauhtémoc","p":[[[-99.1417,19.4658],[-99.1333,19.4649],[-99.1222,19.4598],[-99.1259,19.4482],[-99.1231,19.4425],[-99.1282,19.4138],[-99.1257,19.4043],[-99.1364,19.4028],[-99.1563,19.4041],[-99.1704,19.3998],[-99.1711,19.4035],[-99.1843,19.4078],[-99.1751,19.423],[-99.1776,19.4236],[-99.1658,19.4436],[-99.1631,19.4591],[-99.1587,19.4639],[-99.1503,19.463],[-99.1417,19.4658]]]},{"n":"Gustavo A. Madero","p":[[[-99.1221,19.5925],[-99.1179,19.5906],[-99.1186,19.5845],[-99.1147,19.5798],[-99.1118,19.5687],[-99.1081,19.5649],[-99.1157,19.5567],[-99.1156,19.554],[-99.121,19.5491],[-99.1227,19.5454],[-99.1306,19.5361],[-99.1274,19.5351],[-99.128,19.5245],[-99.1253,19.5205],[-99.1144,19.5111],[-99.1094,19.5103],[-99.1076,19.511],[-99.1073,19.5097],[-99.0974,19.5126],[-99.0639,19.4988],[-99.068,19.4891],[-99.0649,19.4818],[-99.0633,19.4813],[-99.0634,19.4786],[-99.0509,19.4502],[-99.0526,19.4484],[-99.0623,19.4448],[-99.0809,19.4502],[-99.0872,19.4458],[-99.0932,19.4516],[-99.1014,19.4499],[-99.1116,19.4537],[-99.1173,19.4581],[-99.1276,19.4615],[-99.1333,19.4649],[-99.1419,19.4658],[-99.1431,19.4651],[-99.163,19.518],[-99.1746,19.5241],[-99.1714,19.5272],[-99.1754,19.5301],[-99.1762,19.5289],[-99.177,19.5293],[-99.176,19.532],[-99.1592,19.5269],[-99.1568,19.5281],[-99.1586,19.5289],[-99.1558,19.5324],[-99.1585,19.5339],[-99.1511,19.5448],[-99.1609,19.5493],[-99.1576,19.555],[-99.1581,19.5574],[-99.1561,19.5602],[-99.1528,19.562],[-99.1509,19.5605],[-99.1468,19.5646],[-99.1448,19.5708],[-99.1396,19.5754],[-99.1379,19.5811],[-99.1338,19.5849],[-99.1338,19.5862],[-99.127,19.5885],[-99.1237,19.5928],[-99.1221,19.5925]]]},{"n":"Iztacalco","p":[[[-99.0559,19.4222],[-99.0608,19.3826],[-99.0664,19.3835],[-99.084,19.3926],[-99.0846,19.3895],[-99.0888,19.3904],[-99.0956,19.3796],[-99.1225,19.3824],[-99.1225,19.3757],[-99.1355,19.3772],[-99.1309,19.399],[-99.1372,19.3992],[-99.1366,19.4028],[-99.1146,19.4056],[-99.098,19.4091],[-99.0782,19.4071],[-99.0695,19.4203],[-99.0579,19.4209],[-99.0559,19.4222]]]},{"n":"Iztapalapa","p":[[[-99.0581,19.4007],[-99.0196,19.3833],[-98.9919,19.3676],[-98.9946,19.3581],[-98.9788,19.3433],[-98.9743,19.337],[-98.9604,19.3254],[-98.9683,19.3257],[-98.969,19.3247],[-98.9753,19.3256],[-98.9765,19.3243],[-98.9782,19.3253],[-98.9786,19.3239],[-98.9806,19.3247],[-98.9799,19.3261],[-99.0014,19.3271],[-99.0387,19.3157],[-99.0396,19.3147],[-99.0404,19.3154],[-99.0436,19.3122],[-99.0466,19.3149],[-99.0489,19.3119],[-99.0504,19.313],[-99.0523,19.3108],[-99.0538,19.3119],[-99.0599,19.3044],[-99.0634,19.3057],[-99.0648,19.3016],[-99.0616,19.2927],[-99.0692,19.2851],[-99.0749,19.2897],[-99.0977,19.3172],[-99.1,19.3219],[-99.1057,19.3263],[-99.1122,19.3342],[-99.1156,19.3433],[-99.1202,19.3506],[-99.122,19.3577],[-99.1312,19.3587],[-99.1337,19.3566],[-99.1399,19.3574],[-99.1354,19.3773],[-99.1225,19.3757],[-99.1225,19.3824],[-99.0956,19.3796],[-99.0888,19.3904],[-99.0846,19.3895],[-99.084,19.3926],[-99.0664,19.3835],[-99.0608,19.3826],[-99.0581,19.4007]]]},{"n":"La Magdalena Contreras","p":[[[-99.2079,19.3379],[-99.2087,19.336],[-99.2067,19.3362],[-99.2127,19.3269],[-99.2212,19.3201],[-99.2205,19.3113],[-99.2249,19.3106],[-99.2277,19.307],[-99.2319,19.305],[-99.233,19.3018],[-99.2322,19.3015],[-99.2334,19.3008],[-99.2325,19.2979],[-99.2333,19.2966],[-99.236,19.2945],[-99.2414,19.294],[-99.2427,19.2923],[-99.2428,19.2894],[-99.2408,19.287],[-99.243,19.2841],[-99.242,19.283],[-99.2449,19.2801],[-99.2454,19.277],[-99.2435,19.2756],[-99.2446,19.2729],[-99.2435,19.2698],[-99.246,19.2675],[-99.2471,19.2647],[-99.2455,19.2629],[-99.2472,19.2603],[-99.2457,19.2589],[-99.2439,19.2592],[-99.2454,19.2573],[-99.2446,19.2527],[-99.248,19.2467],[-99.2504,19.2457],[-99.2518,19.2424],[-99.251,19.2405],[-99.2534,19.2348],[-99.2589,19.2305],[-99.2707,19.2242],[-99.2742,19.221],[-99.2742,19.2182],[-99.2773,19.2147],[-99.2831,19.2131],[-99.2878,19.2131],[-99.2914,19.2146],[-99.2932,19.2139],[-99.2967,19.2178],[-99.3014,19.2182],[-99.3096,19.2247],[-99.3151,19.2269],[-99.3153,19.2292],[-99.3223,19.2326],[-99.3232,19.2392],[-99.3176,19.2445],[-99.3171,19.2503],[-99.3159,19.2509],[-99.3148,19.255],[-99.3154,19.2564],[-99.3053,19.2579],[-99.3024,19.2589],[-99.3009,19.261],[-99.298,19.2615],[-99.2942,19.2646],[-99.2926,19.2683],[-99.2896,19.2703],[-99.2862,19.2707],[-99.2833,19.2751],[-99.284,19.277],[-99.2811,19.2806],[-99.2782,19.2814],[-99.2779,19.2826],[-99.2733,19.2852],[-99.2762,19.2891],[-99.2725,19.2942],[-99.2715,19.2992],[-99.2697,19.3012],[-99.2722,19.3025],[-99.2684,19.3051],[-99.27,19.3058],[-99.2713,19.3083],[-99.2695,19.3136],[-99.2676,19.3142],[-99.2659,19.3134],[-99.2547,19.3268],[-99.2442,19.3286],[-99.2403,19.3244],[-99.2373,19.3247],[-99.2312,19.3298],[-99.2171,19.3347],[-99.2149,19.3364],[-99.2115,19.3362],[-99.2079,19.3379]]]},{"n":"Miguel Hidalgo","p":[[[-99.2008,19.4734],[-99.1904,19.4705],[-99.1907,19.4647],[-99.188,19.4638],[-99.1885,19.4608],[-99.1637,19.4564],[-99.1658,19.4436],[-99.1776,19.4236],[-99.1751,19.423],[-99.1843,19.4078],[-99.1711,19.4035],[-99.1704,19.3998],[-99.1891,19.3956],[-99.1922,19.4011],[-99.1922,19.4037],[-99.1976,19.4031],[-99.2105,19.4004],[-99.2236,19.3959],[-99.2378,19.3935],[-99.2399,19.3889],[-99.2427,19.387],[-99.2455,19.3874],[-99.2477,19.386],[-99.2485,19.3904],[-99.247,19.3942],[-99.2526,19.3935],[-99.2548,19.3952],[-99.2548,19.3937],[-99.2592,19.3926],[-99.2596,19.3943],[-99.2557,19.3973],[-99.2558,19.4036],[-99.2549,19.4046],[-99.2483,19.4086],[-99.2408,19.4119],[-99.2373,19.4124],[-99.2308,19.4217],[-99.2255,19.4266],[-99.2223,19.4269],[-99.2234,19.4295],[-99.2268,19.4313],[-99.2262,19.434],[-99.2296,19.4374],[-99.2206,19.4437],[-99.2181,19.4441],[-99.2201,19.4461],[-99.22,19.4529],[-99.2174,19.4537],[-99.2153,19.4562],[-99.2115,19.468],[-99.2089,19.4701],[-99.2072,19.4696],[-99.2068,19.4712],[-99.205,19.4722],[-99.2008,19.4734]]]},{"n":"Milpa Alta","p":[[[-98.9988,19.2277],[-98.9972,19.2275],[-98.9975,19.2265],[-98.9958,19.225],[-98.9953,19.2275],[-98.9937,19.2275],[-98.9933,19.2249],[-98.9912,19.2248],[-98.9906,19.2258],[-98.9782,19.2151],[-98.9736,19.2141],[-98.9668,19.209],[-98.9672,19.2063],[-98.9697,19.2043],[-98.9677,19.2031],[-98.967,19.1999],[-98.9677,19.1897],[-98.9598,19.1792],[-98.9562,19.1768],[-98.9524,19.1686],[-98.9674,19.1644],[-98.9546,19.1495],[-98.9665,19.1439],[-98.9611,19.133],[-98.9575,19.1224],[-98.9591,19.1043],[-98.9612,19.0956],[-98.9657,19.0859],[-98.979,19.0745],[-98.9836,19.0788],[-99.029,19.0854],[-99.0432,19.0758],[-99.0598,19.0482],[-99.1254,19.0621],[-99.1354,19.0893],[-99.1365,19.0894],[-99.1633,19.1175],[-99.1525,19.1421],[-99.152,19.1508],[-99.1496,19.1603],[-99.1445,19.1587],[-99.1404,19.1522],[-99.1324,19.1486],[-99.1048,19.199],[-99.1022,19.2007],[-99.1017,19.2048],[-99.0992,19.2081],[-99.0957,19.2086],[-99.0946,19.2115],[-99.091,19.211],[-99.0302,19.2236],[-99.0001,19.2263],[-99.003,19.2276],[-98.9998,19.2268],[-98.9988,19.2277]]]},{"n":"Tlalpan","p":[[[-99.2198,19.3121],[-99.2154,19.3076],[-99.2022,19.305],[-99.1963,19.3023],[-99.1793,19.3034],[-99.1656,19.3017],[-99.1602,19.3006],[-99.1567,19.2968],[-99.1516,19.298],[-99.1474,19.3013],[-99.1426,19.2996],[-99.1347,19.3083],[-99.1168,19.3014],[-99.1092,19.2996],[-99.1009,19.3],[-99.1014,19.2952],[-99.105,19.2935],[-99.1249,19.2852],[-99.1351,19.2825],[-99.1411,19.2825],[-99.1421,19.2739],[-99.1412,19.2735],[-99.1449,19.2674],[-99.1424,19.2666],[-99.1424,19.2602],[-99.1402,19.2579],[-99.1408,19.257],[-99.1394,19.2547],[-99.1417,19.249],[-99.1389,19.246],[-99.1404,19.2436],[-99.1443,19.2447],[-99.144,19.2397],[-99.1475,19.2403],[-99.1445,19.2345],[-99.1479,19.2346],[-99.1482,19.2363],[-99.1495,19.234],[-99.1507,19.2347],[-99.1506,19.2326],[-99.1534,19.226],[-99.1512,19.2234],[-99.1525,19.2205],[-99.1535,19.2218],[-99.1544,19.2206],[-99.1383,19.2157],[-99.1328,19.21],[-99.1324,19.2065],[-99.1293,19.203],[-99.1307,19.1913],[-99.1271,19.1873],[-99.1301,19.1839],[-99.1324,19.1785],[-99.1321,19.1751],[-99.13,19.1722],[-99.1303,19.1659],[-99.1327,19.1601],[-99.1328,19.1549],[-99.1325,19.153],[-99.1302,19.1525],[-99.1324,19.1486],[-99.1404,19.1522],[-99.1445,19.1587],[-99.1496,19.1603],[-99.152,19.1508],[-99.1525,19.1421],[-99.1633,19.1175],[-99.1365,19.0894],[-99.2268,19.0961],[-99.2787,19.1317],[-99.2876,19.1466],[-99.2956,19.1729],[-99.3028,19.1909],[-99.3071,19.2137],[-99.3162,19.2215],[-99.3156,19.2274],[-99.3057,19.2222],[-99.3014,19.2182],[-99.2967,19.2178],[-99.2932,19.2139],[-99.2914,19.2146],[-99.2878,19.2131],[-99.2824,19.2131],[-99.2772,19.2148],[-99.2742,19.2182],[-99.2742,19.221],[-99.2707,19.2242],[-99.2589,19.2305],[-99.2534,19.2348],[-99.251,19.2405],[-99.2518,19.2424],[-99.2504,19.2457],[-99.248,19.2467],[-99.2446,19.2527],[-99.2454,19.2573],[-99.2439,19.2592],[-99.2457,19.2589],[-99.2472,19.2603],[-99.2455,19.2629],[-99.2471,19.2647],[-99.246,19.2675],[-99.2435,19.2698],[-99.2446,19.2729],[-99.2435,19.2756],[-99.2454,19.277],[-99.2449,19.2801],[-99.242,19.283],[-99.243,19.2841],[-99.2408,19.287],[-99.2428,19.2894],[-99.2427,19.2923],[-99.2414,19.294],[-99.236,19.2945],[-99.2333,19.2966],[-99.2325,19.2979],[-99.2334,19.3008],[-99.2322,19.3015],[-99.233,19.3018],[-99.2319,19.305],[-99.2277,19.307],[-99.2249,19.3106],[-99.2207,19.3111],[-99.2198,19.3121]]]},{"n":"Tláhuac","p":[[[-99.0014,19.3271],[-98.9799,19.3261],[-98.9806,19.3247],[-98.9786,19.3239],[-98.9782,19.3253],[-98.9765,19.3243],[-98.9753,19.3256],[-98.969,19.3247],[-98.9683,19.3257],[-98.9604,19.3254],[-98.9579,19.3232],[-98.963,19.3167],[-98.9648,19.3069],[-98.9672,19.306],[-98.9765,19.2531],[-98.966,19.2499],[-98.9686,19.2322],[-98.9403,19.2232],[-98.9426,19.2156],[-98.9511,19.2182],[-98.9539,19.2146],[-98.9627,19.2141],[-98.9685,19.2106],[-98.9743,19.2144],[-98.9782,19.2151],[-98.9906,19.2258],[-98.9912,19.2248],[-98.9933,19.2249],[-98.9937,19.2275],[-98.9953,19.2275],[-98.9958,19.225],[-98.9975,19.2265],[-98.9972,19.2275],[-98.9998,19.2268],[-99.003,19.2276],[-99.0001,19.2263],[-99.0302,19.2236],[-99.0155,19.2409],[-99.0139,19.2451],[-99.0126,19.2447],[-99.0123,19.2465],[-99.0112,19.2461],[-99.0089,19.2507],[-99.007,19.2516],[-99.0128,19.2579],[-99.0165,19.26],[-99.0298,19.2626],[-99.0373,19.2717],[-99.0545,19.2794],[-99.0644,19.282],[-99.069,19.285],[-99.0616,19.2927],[-99.0648,19.3016],[-99.0634,19.3057],[-99.0599,19.3044],[-99.0538,19.3119],[-99.0523,19.3108],[-99.0504,19.313],[-99.0489,19.3119],[-99.0466,19.3149],[-99.0436,19.3122],[-99.0404,19.3154],[-99.0396,19.3147],[-99.0387,19.3157],[-99.0014,19.3271]]]},{"n":"Venustiano Carranza","p":[[[-99.1222,19.4598],[-99.1171,19.458],[-99.1118,19.4538],[-99.1014,19.4499],[-99.0932,19.4516],[-99.0872,19.4458],[-99.0809,19.4502],[-99.0623,19.4448],[-99.0526,19.4484],[-99.0509,19.4502],[-99.0465,19.4424],[-99.0558,19.4221],[-99.0579,19.4209],[-99.0695,19.4203],[-99.078,19.4071],[-99.098,19.4091],[-99.1257,19.4043],[-99.1282,19.4138],[-99.1231,19.4425],[-99.1259,19.4482],[-99.1222,19.4598]]]},{"n":"Xochimilco","p":[[[-99.0987,19.3196],[-99.0943,19.3128],[-99.0749,19.2897],[-99.0683,19.2844],[-99.0644,19.282],[-99.0545,19.2794],[-99.0373,19.2717],[-99.0298,19.2626],[-99.0165,19.26],[-99.0128,19.2579],[-99.007,19.2516],[-99.0089,19.2507],[-99.0112,19.2461],[-99.0123,19.2465],[-99.0126,19.2447],[-99.0139,19.2451],[-99.0155,19.2409],[-99.0302,19.2236],[-99.091,19.211],[-99.0946,19.2115],[-99.0957,19.2086],[-99.0993,19.2081],[-99.1017,19.2048],[-99.1022,19.2007],[-99.1048,19.199],[-99.1302,19.1525],[-99.1317,19.1526],[-99.1326,19.1532],[-99.1327,19.1601],[-99.1303,19.1659],[-99.1299,19.1724],[-99.1321,19.1751],[-99.1324,19.1785],[-99.1301,19.1839],[-99.1271,19.1873],[-99.1307,19.1913],[-99.1293,19.203],[-99.1324,19.2065],[-99.1328,19.21],[-99.1383,19.2157],[-99.1544,19.2206],[-99.1535,19.2218],[-99.1525,19.2205],[-99.1512,19.2234],[-99.1534,19.226],[-99.1506,19.2326],[-99.1507,19.2347],[-99.1495,19.234],[-99.1482,19.2363],[-99.1479,19.2346],[-99.1445,19.2345],[-99.1475,19.2403],[-99.144,19.2397],[-99.1443,19.2447],[-99.1404,19.2436],[-99.1389,19.246],[-99.1417,19.249],[-99.1394,19.2547],[-99.1408,19.257],[-99.1402,19.2579],[-99.1424,19.2602],[-99.1424,19.2666],[-99.1449,19.2674],[-99.1412,19.2735],[-99.1421,19.2739],[-99.1411,19.2825],[-99.1351,19.2825],[-99.1249,19.2852],[-99.1014,19.2952],[-99.0987,19.3196]]]},{"n":"Álvaro Obregón","p":[[[-99.1922,19.4037],[-99.1922,19.4011],[-99.1884,19.3936],[-99.1917,19.3827],[-99.1921,19.3734],[-99.1911,19.3635],[-99.1837,19.3617],[-99.1798,19.363],[-99.1777,19.3651],[-99.1717,19.3596],[-99.173,19.3568],[-99.1799,19.3496],[-99.1806,19.3472],[-99.1829,19.3466],[-99.184,19.3436],[-99.1912,19.3369],[-99.1981,19.3355],[-99.1998,19.3335],[-99.1963,19.3336],[-99.1947,19.3302],[-99.195,19.3218],[-99.2012,19.312],[-99.2002,19.3112],[-99.2058,19.3057],[-99.2159,19.3079],[-99.2205,19.3137],[-99.2211,19.3203],[-99.2128,19.3268],[-99.2067,19.3362],[-99.2087,19.336],[-99.2075,19.3378],[-99.2115,19.3362],[-99.2149,19.3364],[-99.2171,19.3347],[-99.2312,19.3298],[-99.2373,19.3247],[-99.2403,19.3244],[-99.2442,19.3286],[-99.2552,19.3266],[-99.2659,19.3134],[-99.2684,19.314],[-99.2705,19.3119],[-99.2712,19.3072],[-99.2684,19.3051],[-99.2722,19.3025],[-99.2697,19.3012],[-99.2715,19.2992],[-99.2725,19.2942],[-99.2762,19.2891],[-99.2733,19.2852],[-99.2779,19.2826],[-99.2782,19.2814],[-99.2811,19.2806],[-99.284,19.277],[-99.2833,19.2751],[-99.2862,19.2707],[-99.2896,19.2703],[-99.2926,19.2683],[-99.2942,19.2646],[-99.298,19.2615],[-99.3009,19.261],[-99.3024,19.2589],[-99.3053,19.2579],[-99.3154,19.2564],[-99.3148,19.255],[-99.3159,19.2509],[-99.3171,19.2503],[-99.3176,19.2445],[-99.3227,19.2403],[-99.3233,19.2386],[-99.3223,19.2326],[-99.3243,19.2326],[-99.3236,19.2651],[-99.3174,19.2749],[-99.3157,19.2822],[-99.3167,19.2861],[-99.3157,19.2899],[-99.3171,19.2934],[-99.3164,19.3001],[-99.314,19.3014],[-99.3116,19.3068],[-99.3102,19.3076],[-99.3088,19.3051],[-99.3074,19.3079],[-99.3059,19.3072],[-99.3033,19.3111],[-99.3013,19.3095],[-99.3,19.314],[-99.3018,19.3183],[-99.3005,19.3223],[-99.2965,19.3172],[-99.2948,19.3169],[-99.2931,19.3205],[-99.2906,19.3215],[-99.2917,19.3242],[-99.2908,19.3266],[-99.2913,19.3292],[-99.288,19.3335],[-99.2883,19.3307],[-99.2867,19.3298],[-99.2875,19.3311],[-99.285,19.3365],[-99.2802,19.3352],[-99.2812,19.3374],[-99.2684,19.3419],[-99.2631,19.3468],[-99.259,19.3481],[-99.2611,19.3478],[-99.2582,19.3498],[-99.2593,19.3502],[-99.2613,19.361],[-99.2668,19.3635],[-99.2667,19.3678],[-99.2651,19.3717],[-99.2684,19.3687],[-99.2684,19.3718],[-99.2698,19.3714],[-99.27,19.3731],[-99.2614,19.3758],[-99.246,19.3872],[-99.2421,19.3874],[-99.2397,19.3891],[-99.2378,19.3935],[-99.2236,19.3959],[-99.2105,19.4004],[-99.1922,19.4037]]]}];  // Límites: INEGI, Marco Geoestadístico (simplificado)
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt$=n=>'$'+(isFinite(n)?n:0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtN=(n,d=1)=>(isFinite(n)?n:0).toLocaleString('es-MX',{maximumFractionDigits:d});
+const fmtH=ts=>new Date(ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+const fmtDur=ms=>{ms=Math.max(0,ms||0);const m=Math.floor(ms/60000);return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min';};
+const crono=ms=>{ms=Math.max(0,ms);const t=Math.floor(ms/1000),h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0');};
+const hace=ms=>ms<60000? Math.round(ms/1000)+' s' : ms<3600000? Math.round(ms/60000)+' min' : fmtDur(ms);
+const COLORES=['#3987e5','#e2622a','#2fbf71','#b07ce8','#f5d33f','#e66767','#36c2c2','#f08cc0'];
+function enPol(lon,lat,p){let d=false;for(let i=0,k=p.length-1;i<p.length;k=i++){const[xi,yi]=p[i],[xk,yk]=p[k];if(((yi>lat)!==(yk>lat))&&(lon<(xk-xi)*(lat-yi)/(yk-yi)+xi))d=!d;}return d;}
+const zona=c=>{ if(!c) return '—'; const a=CDMX_ALCALDIAS.find(a=>a.p.some(p=>enPol(c.lon,c.lat,p))); return a?a.n:'Fuera de la CDMX'; };
+function hav(a,b){const R=6371,r=x=>x*Math.PI/180,dL=r(b.lat-a.lat),dO=r(b.lon-a.lon);const h=Math.sin(dL/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dO/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+
+/* ---- conexión ---- */
+const LS='bitacoraMonitor.v1';
+let cfg=null;
+function leerCodigo(t){
+  t=String(t||'').trim(); const m=t.match(/#k=([A-Za-z0-9_-]+)/); const c=m?m[1]:t;
+  try{ const o=JSON.parse(atob(c.replace(/-/g,'+').replace(/_/g,'/'))); if(o.u&&o.c&&/^https:\/\//.test(o.u)) return {u:o.u,c:o.c}; }catch(e){}
+  return null;
+}
+function iniciarConfig(){
+  const h=leerCodigo(location.hash);
+  if(h){ cfg=h; try{ localStorage.setItem(LS,JSON.stringify(cfg)); }catch(e){} history.replaceState(null,'',location.pathname); }
+  else { try{ cfg=JSON.parse(localStorage.getItem(LS)); }catch(e){} }
+  if(!cfg){ $('#setup').hidden=false; return false; }
+  $('#app').hidden=false; return true;
+}
+$('#conectar').onclick=()=>{ const c=leerCodigo($('#codigo').value); if(!c){ $('#setupErr').textContent='Ese enlace no es válido. Cópialo de nuevo desde la Bitácora.'; return; }
+  try{ localStorage.setItem(LS,JSON.stringify(c)); }catch(e){} location.reload(); };
+$('#salir').onclick=()=>{ if(window.confirm('¿Olvidar la conexión en esta computadora?')){ try{ localStorage.removeItem(LS); }catch(e){} location.reload(); } };
+const url=p=>`${cfg.u}/bitacora/${cfg.c}/${p}.json`;
+async function leer(p){ const r=await fetch(url(p),{cache:'no-store'}); if(!r.ok) throw new Error(r.status===401||r.status===403?'Firebase rechazó la lectura (revisa las reglas)':'Error '+r.status); return r.json(); }
+
+/* ---- mapa ---- */
+let map, capaRutas, capaCoche, coche, circAcc, seguir=true, oscuro=true, primeraVez=true;
+function iniciarMapa(){
+  if(!window.L){ $('#map').innerHTML='<div style="padding:30px" class="muted">No se pudo cargar el mapa de calles (¿sin internet?). Los datos del panel siguen funcionando.</div>'; return; }
+  map=L.map('map',{zoomControl:true}).setView([19.40,-99.13],11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap · Límites: INEGI'}).addTo(map);
+  document.body.classList.toggle('oscuro',oscuro);
+  CDMX_ALCALDIAS.forEach(a=>a.p.forEach(p=>L.polyline(p.map(([x,y])=>[y,x]),{color:'#8d8c84',weight:1,opacity:.7,interactive:false}).addTo(map)));
+  capaRutas=L.layerGroup().addTo(map); capaCoche=L.layerGroup().addTo(map);
+  map.on('dragstart',()=>{ if(seguir){ seguir=false; botonSeguir(); } });
+}
+const CARRO_SVG=`<svg width="46" height="24" viewBox="-1 -1 47 21"><path d="M1,17 L1,9 Q1,5 5,4 L9,1 Q10,0 12,0 L27,0 Q29,0 31,2 L36,7 L41,8 Q44,9 44,12 L44,17 Z" fill="#fff" stroke="#121211" stroke-width="1.2"/><path d="M10,2.2 L19,2.2 L19,7 L8,7 Z M21,2.2 L27,2.2 Q28.5,2.2 29.5,3.3 L33,7 L21,7 Z" fill="#2b3b4d"/><circle cx="11" cy="17" r="4.6" fill="#121211"/><circle cx="11" cy="17" r="2" fill="#bdbdb6"/><circle cx="35" cy="17" r="4.6" fill="#121211"/><circle cx="35" cy="17" r="2" fill="#bdbdb6"/></svg>`;
+function ponerCoche(pos){
+  if(!map) return; capaCoche.clearLayers(); if(!pos) return;
+  const ll=[pos.lat,pos.lon];
+  L.circle(ll,{radius:Math.max(pos.acc||10,10),color:'#3987e5',weight:1,fillOpacity:.12}).addTo(capaCoche);
+  L.marker(ll,{icon:L.divIcon({className:'',html:`<div style="position:relative"><div class="pulse"></div><div class="car-ic" style="position:relative">${CARRO_SVG}</div></div>`,iconSize:[46,24],iconAnchor:[23,20]}),zIndexOffset:1000}).addTo(capaCoche);
+  if(seguir){ if(primeraVez){ map.setView(ll,14); primeraVez=false; } else map.panTo(ll); }
+}
+function dibujarDia(d, vivo){
+  if(!map) return; capaRutas.clearLayers(); if(!d) return;
+  const todos=[];
+  const libre=pts=>{ if(pts&&pts.length>1){ L.polyline(pts,{color:'#8d8c84',weight:3,dashArray:'6 6',opacity:.85}).addTo(capaRutas); todos.push(...pts); } };
+  (d.rutasLibres||[]).forEach(libre); libre(d.libreActual);
+  (d.viajes||[]).forEach((t,i)=>{ const c=COLORES[i%COLORES.length], pts=(t.ruta||[]).slice();
+    if(pts.length<2 && t.coordIni && t.coordFin){ pts.push([t.coordIni.lat,t.coordIni.lon],[t.coordFin.lat,t.coordFin.lon]); }
+    if(pts.length>1){ L.polyline(pts,{color:'#121211',weight:8,opacity:.8}).addTo(capaRutas); const pl=L.polyline(pts,{color:c,weight:5}).addTo(capaRutas);
+      pl.bindTooltip(`Viaje ${t.n} · ${fmt$(t.pago)} · ${fmtN(t.kmFin-t.kmIni)} km`,{sticky:true}); todos.push(...pts);
+      L.circleMarker(pts[0],{radius:6,color:c,weight:3,fillColor:'#121211',fillOpacity:1}).addTo(capaRutas);
+      L.marker(pts[pts.length-1],{icon:L.divIcon({className:'',html:`<div style="background:${c};color:#121211;border:2px solid #121211;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px">${t.n}</div>`,iconSize:[24,24],iconAnchor:[12,12]})}).addTo(capaRutas); }
+    t._pts=pts; });
+  if(d.rutaActiva && d.rutaActiva.length>1){ const i=(d.viajes||[]).length, c=COLORES[i%COLORES.length];
+    L.polyline(d.rutaActiva,{color:'#121211',weight:8,opacity:.8}).addTo(capaRutas); L.polyline(d.rutaActiva,{color:c,weight:5}).addTo(capaRutas);
+    L.circleMarker(d.rutaActiva[0],{radius:6,color:c,weight:3,fillColor:'#121211',fillOpacity:1}).addTo(capaRutas); todos.push(...d.rutaActiva); }
+  if(!vivo && todos.length) map.fitBounds(todos,{padding:[40,40]});
+}
+function enfocarViaje(t){ if(map && t._pts && t._pts.length>1){ seguir=false; botonSeguir(); map.fitBounds(t._pts,{padding:[60,60]}); } }
+
+/* ---- estado ---- */
+let vivo=null, dia=null, diaSel='hoy', pasadas={}, ultErr=null, prevPos=null, vel=null;
+async function tickVivo(){
+  try{ const v=await leer('vivo'); ultErr=null;
+    if(v && v.pos && (!vivo||!vivo.pos||v.pos.ts!==vivo.pos.ts)){
+      if(vivo&&vivo.pos&&v.pos.ts>vivo.pos.ts){ const km=hav(vivo.pos,v.pos), h=(v.pos.ts-vivo.pos.ts)/3600000; if(h>0){ const s=km/h; vel= s<200? s : vel; } }
+      if(diaSel==='hoy') ponerCoche(v.pos);
+    }
+    vivo=v;
+  }catch(e){ ultErr=e.message||'Sin conexión'; }
+  pintar();
+}
+async function tickDia(){
+  if(diaSel!=='hoy') return;
+  try{ dia=await leer('hoy'); dibujarDia(dia,true); }catch(e){ ultErr=e.message||'Sin conexión'; }
+  pintar();
+}
+async function cargarDias(){
+  try{ const r=await fetch(url('jornadas')+'?shallow=true',{cache:'no-store'}); if(!r.ok) return; const o=await r.json(); if(!o) return;
+    const sel=$('#dia'); const ids=Object.keys(o).sort().reverse();
+    for(const id of ids){ if(pasadas[id]) continue; try{ pasadas[id]=await leer('jornadas/'+id); }catch(e){ continue; } }
+    const lista=Object.values(pasadas).sort((a,b)=>b.inicio-a.inicio);
+    sel.innerHTML='<option value="hoy">Hoy (en vivo)</option>'+lista.map(d=>`<option value="${esc(d.id)}">${new Date(d.inicio).toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'})} · ${fmt$(d.ganancia)}</option>`).join('');
+    sel.value=diaSel;
+  }catch(e){}
+}
+$('#dia').onchange=e=>{ diaSel=e.target.value; if(diaSel==='hoy'){ seguir=true; botonSeguir(); dibujarDia(dia,true); if(vivo) ponerCoche(vivo.pos); } else { capaCoche&&capaCoche.clearLayers(); dibujarDia(pasadas[diaSel],false); } pintar(); };
+function botonSeguir(){ $('#seguir').textContent='🎯 Seguir coche: '+(seguir?'sí':'no'); }
+$('#seguir').onclick=()=>{ seguir=!seguir; botonSeguir(); if(seguir&&vivo&&vivo.pos&&map) map.setView([vivo.pos.lat,vivo.pos.lon],Math.max(map.getZoom(),14)); };
+$('#tema').onclick=()=>{ oscuro=!oscuro; document.body.classList.toggle('oscuro',oscuro); $('#tema').textContent=oscuro?'🌙 Mapa oscuro':'☀️ Mapa claro'; };
+
+function pintar(){
+  const p=$('#pill'), ahora=Date.now();
+  const edad = vivo&&vivo.ts? ahora-vivo.ts : Infinity;
+  if(ultErr){ p.className='pill off'; p.textContent='⚠️ '+ultErr; }
+  else if(!vivo){ p.className='pill warn'; p.textContent='Sin datos todavía'; }
+  else if(vivo.estado==='desactivado'){ p.className='pill off'; p.textContent='Monitoreo desactivado en el teléfono'; }
+  else if(edad<75000){ p.className='pill on'; p.textContent='● En línea · hace '+hace(edad); }
+  else { p.className='pill warn'; p.textContent='Última señal hace '+hace(edad); }
+  const pan=$('#panel'); let h='';
+  if(diaSel!=='hoy'){ h+=resumenDia(pasadas[diaSel],'Día seleccionado'); h+=listaViajes(pasadas[diaSel]); pan.innerHTML=h; conectarLista(pasadas[diaSel]); return; }
+  if(vivo && edad>=75000 && vivo.estado!=='desactivado') h+=`<div class="aviso">El teléfono no ha mandado datos en ${hace(edad)}. Pasa cuando la Bitácora no está en pantalla (por ejemplo, si estás usando Uber Driver), si se bloqueó la pantalla o si no hay señal. Se muestra la última ubicación conocida.</div>`;
+  const est = !vivo? null : vivo.estado;
+  const ESTADOS={viaje:['#2fbf71','En viaje'],libre:['#3987e5','Buscando pasaje / sin pasajero'],sin_jornada:['#8d8c84','Sin jornada activa'],cargando:['#f0a830','Cargando batería'],desactivado:['#e66767','Monitoreo desactivado']};
+  const [col,txt]=ESTADOS[est]||['#8d8c84','Esperando datos…'];
+  h+=`<div class="card"><h2>Estado</h2><div class="estado"><span class="dot" style="background:${col}"></span>${txt}${vivo&&vivo.viaje?' #'+vivo.viaje.n:''}</div>
+    ${vivo&&vivo.pos? `<div class="sec" style="margin-top:8px;font-size:16px">📍 <b>${zona(vivo.pos)}</b></div>
+      <div class="muted">${vivo.pos.lat.toFixed(5)}, ${vivo.pos.lon.toFixed(5)} (±${vivo.pos.acc} m) · ${fmtH(vivo.pos.ts)} · <a style="color:var(--blue)" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${vivo.pos.lat},${vivo.pos.lon}">Google Maps</a></div>
+      ${vel!=null && edad<75000? `<div class="muted">🚀 ~${fmtN(vel,0)} km/h</div>`:''}` : `<div class="muted" style="margin-top:6px">${vivo&&vivo.gps==='err'?'El GPS del teléfono no está disponible.':'Aún no hay ubicación del teléfono.'}</div>`}</div>`;
+  if(vivo&&vivo.viaje){ const v=vivo.viaje, t=ahora-v.inicio; const pctD = v.distEst&&v.gpsKm? Math.min(1,v.gpsKm/v.distEst) : null, pctT = v.minEst? Math.min(1,t/(v.minEst*60000)) : null;
+    h+=`<div class="card" style="border-color:#1f8a52"><h2>Viaje #${v.n} en curso</h2><div class="big">⏱ ${crono(t)}</div>
+      <div class="muted">Desde ${fmtH(v.inicio)} · odómetro ${fmtN(v.kmIni,1)} km${v.autIni!=null?' · autonomía '+fmtN(v.autIni,0)+' km':''}</div>
+      ${pctD!=null? `<div class="bar"><i style="width:${pctD*100}%"></i></div><div class="muted">${fmtN(v.gpsKm)} de ${fmtN(v.distEst)} km (${Math.round(pctD*100)}%)</div>`:''}
+      ${pctT!=null? `<div class="muted" style="margin-top:4px">${Math.round(t/60000)} de ${v.minEst} min estimados${t>v.minEst*60000?' · <span class="down">va retrasado</span>':''}</div>`:''}</div>`; }
+  if(vivo&&vivo.carga){ const c=vivo.carga; h+=`<div class="card"><h2>🔌 Cargando</h2><div class="big">${crono(ahora-c.inicio)}</div><div class="muted">${c.tipo==='rapida'?'Carga rápida 220 V':'Carga normal 127 V'} · empezó con ${c.pctIni}% a las ${fmtH(c.inicio)}</div></div>`; }
+  if(vivo&&vivo.jornada){ const J=vivo.jornada, ms=ahora-J.inicio;
+    h+=`<div class="card"><h2>Jornada de hoy</h2><div class="kp">
+      <div class="k"><div class="l">Ganancia</div><div class="v">${fmt$(J.ganancia)}</div></div>
+      <div class="k"><div class="l">Tiempo</div><div class="v">${fmtDur(ms)}</div></div>
+      <div class="k"><div class="l">Viajes</div><div class="v">${J.viajes}</div></div>
+      <div class="k"><div class="l">$/km en viajes</div><div class="v">${J.kmViajes>0?fmt$(J.ganancia/J.kmViajes):'—'}</div></div>
+      <div class="k"><div class="l">Km en viajes</div><div class="v">${fmtN(J.kmViajes)} km</div></div>
+      <div class="k"><div class="l">Recorrido GPS</div><div class="v">${fmtN(J.gpsKm)} km</div></div></div>
+      <div class="muted" style="margin-top:8px">Inició ${fmtH(J.inicio)} · ${fmt$((J.ganancia||0)/Math.max(ms/3600000,.01))}/h</div></div>`; }
+  else if(dia && dia.estado==='cerrada') h+=resumenDia(dia,'Última jornada');
+  h+=listaViajes(dia);
+  pan.innerHTML=h; conectarLista(dia);
+}
+function resumenDia(d,titulo){ if(!d) return ''; const pk=d.kmTotal>0? d.ganancia/d.kmTotal:0;
+  return `<div class="card"><h2>${titulo}</h2><div class="sec">${new Date(d.inicio).toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})} · ${fmtH(d.inicio)} a ${d.fin?fmtH(d.fin):'—'}</div>
+    <div class="big" style="margin:6px 0">${fmt$(d.ganancia)}</div><div class="kp">
+    <div class="k"><div class="l">Tiempo</div><div class="v">${fmtDur(d.ms)}</div></div><div class="k"><div class="l">Viajes</div><div class="v">${(d.viajes||[]).length}</div></div>
+    <div class="k"><div class="l">Km totales</div><div class="v">${fmtN(d.kmTotal)} km</div></div><div class="k"><div class="l">$/km</div><div class="v">${fmt$(pk)}</div></div>
+    <div class="k"><div class="l">Velocidad prom.</div><div class="v">${d.ms>=300000?fmtN(d.kmTotal/(d.ms/3600000),0)+' km/h':'—'}</div></div><div class="k"><div class="l">Recorrido GPS</div><div class="v">${fmtN(d.gpsKm)} km</div></div></div></div>`; }
+function listaViajes(d){ const vs=(d&&d.viajes)||[]; if(!vs.length) return '';
+  return `<div class="card"><h2>Viajes del día · clic para verlo en el mapa</h2>${vs.slice().reverse().map(t=>{ const km=t.kmFin-t.kmIni, dur=t.fin-t.inicio;
+    const eta = t.minEst? Math.round(t.minEst-dur/60000) : null;
+    return `<div class="trip" data-n="${t.n}"><div class="n" style="background:${COLORES[(t.n-1)%COLORES.length]}">${t.n}</div><div class="m">
+      <div><b>${fmtH(t.inicio)}–${fmtH(t.fin)}</b> <span class="muted">· ${fmtDur(dur)} · ${fmtN(km)} km</span></div>
+      <div class="muted">${t.coordIni?zona(t.coordIni):(esc(t.origen)||'—')} → ${t.coordFin?zona(t.coordFin):(esc(t.destino)||'—')}</div>
+      ${eta!=null? `<div class="${eta>0?'up':eta<0?'down':'sec'}" style="font-size:13px">${eta>0?'Llegó '+eta+' min antes':eta<0?'Llegó '+(-eta)+' min después':'Llegó en el tiempo exacto'}</div>`:''}</div>
+      <div class="r">${fmt$(t.pago)}<div class="muted" style="font-weight:400">${km>0?fmt$(t.pago/km)+'/km':''}</div></div></div>`; }).join('')}</div>`; }
+function conectarLista(d){ document.querySelectorAll('.trip[data-n]').forEach(el=>el.onclick=()=>{ const t=(d.viajes||[]).find(x=>x.n==el.dataset.n); if(t) enfocarViaje(t); }); }
+
+if(iniciarConfig()){
+  iniciarMapa(); botonSeguir();
+  tickVivo(); tickDia(); cargarDias();
+  setInterval(tickVivo,5000); setInterval(tickDia,15000); setInterval(cargarDias,120000);
+  setInterval(()=>{ if(!document.hidden) pintar(); },1000);
+}
+</script>
+</body>
+</html>
