@@ -705,7 +705,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   --r:14px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--text-primary);font-family:system-ui,-apple-system,"Roboto",sans-serif;font-size:16px}
+html,body{overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%;margin:0;background:var(--bg);color:var(--text-primary);font-family:system-ui,-apple-system,"Roboto",sans-serif;font-size:16px}
 body{padding:0 env(safe-area-inset-right) calc(76px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
 header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(12px + env(safe-area-inset-top)) 16px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
 header h1{font-size:18px;margin:0;font-weight:700}
@@ -874,6 +874,7 @@ input.numf{cursor:pointer;caret-color:transparent}
 <div id="np" role="dialog" aria-modal="true"></div>
 
 <script>
+const APP_VERSION='8-nov-2026 (calles y tráfico)';
 /* =================== Utilidades =================== */
 const $ = s => document.querySelector(s);
 const fmt$ = n => '$' + (isFinite(n)? n : 0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -2091,7 +2092,8 @@ function renderHistorial(){
       <button class="btn sec2 small" id="bJson">Copiar respaldo completo</button>
       <button class="btn sec2 small" id="bRest">Restaurar respaldo</button>
     </div>
-    ${monitorCardHTML()}`;
+    ${monitorCardHTML()}
+    <div class="muted" style="text-align:center;font-size:12px;margin:14px 0 4px">Bitácora Uber · versión ${APP_VERSION}</div>`;
   conectarMonitorCard();
   v.querySelectorAll('[data-j]').forEach(d=>d.onclick=()=>{ const j=jornadas[d.dataset.j];
     const viajes=[...j.viajes].sort((a,b)=>tripRate(b)-tripRate(a)); const mx=viajes.length?tripRate(viajes[0]):0;
