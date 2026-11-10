@@ -807,6 +807,12 @@ input.numf{cursor:pointer;caret-color:transparent}
 .letrero .nom{font-family:"Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif;font-weight:800;letter-spacing:.03em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .letrero .sub{font-family:Arial,sans-serif;font-size:9px;font-weight:700;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
 .letrero .cdmx{flex:none;font:900 9px/1 Arial,sans-serif;color:#2f7d32;border:1.5px solid #2f7d32;border-radius:4px;padding:3px 3px}
+
+.letrero .nom .t{display:inline-block}
+.letrero .nom.mueve{text-overflow:clip;text-align:left;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+.letrero .nom.mueve .t{animation:marquesina var(--dur) linear infinite}
+@keyframes marquesina{from{transform:translateX(0)}to{transform:translateX(var(--dist))}}
+@media (prefers-reduced-motion:reduce){.letrero .nom.mueve .t{animation-duration:calc(var(--dur) * 2)}}
 /* ---- Escena del viaje ---- */
 .escena{position:relative;height:172px;border-radius:12px;overflow:hidden;margin-top:4px;user-select:none}
 .escena.dia{background:linear-gradient(#6fbdf3,#cfeaff 72%)}
@@ -2167,13 +2173,22 @@ function letreroHTML(){
   const d=dirActual, alc=(d&&d.alcaldia)|| (ultimaPos? alcaldiaDe(ultimaPos):'') || '';
   const nombre = d&&d.calle? d.calle.replace(/^\s*calle\s+/i,'') : ultimaPos? 'Sin nombre' : 'Buscando…';   // sin la palabra «Calle»: el nombre se ve más grande
   const sub=[d&&d.colonia? 'COL. '+d.colonia : '', alc? 'ALC. '+alc : '', d&&d.cp? 'C.P. '+d.cp : ''].filter(Boolean).join('\u00a0\u00a0\u00a0');
-  const tam=Math.max(15, Math.min(34, Math.round(560/Math.max(8,nombre.length))));
+  const tam=32;   // tamaño fijo y grande; si no cabe, el nombre se recorre de derecha a izquierda
   return `<div class="letrero" role="img" aria-label="Calle ${esc(nombre)}">
     <svg class="emb" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#77706a"/><path d="M12 4l2.2 5.2 5.6.4-4.3 3.6 1.4 5.5L12 15.8 7.1 18.7l1.4-5.5-4.3-3.6 5.6-.4z" fill="#fff" opacity=".9"/></svg>
-    <div class="txt"><div class="nom" style="font-size:${tam}px">${esc(nombre.toUpperCase())}</div><div class="sub">${esc(sub.toUpperCase())}</div></div>
+    <div class="txt"><div class="nom" style="font-size:${tam}px"><span class="t">${esc(nombre.toUpperCase())}</span></div><div class="sub">${esc(sub.toUpperCase())}</div></div>
     <div class="cdmx" aria-hidden="true">CDMX</div></div>`;
 }
-function pintarLetrero(){ const el=$('#letrero'); if(el){ const h=letreroHTML(); if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } } }
+function pintarLetrero(){ const el=$('#letrero'); if(el){ const h=letreroHTML(); if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; ajustarMarquesina(); } } }
+function ajustarMarquesina(){
+  const n=$('#letrero .nom'), t=n&&n.querySelector('.t'); if(!t || n.dataset.listo) return;
+  n.dataset.listo='1';
+  if(t.scrollWidth <= n.clientWidth+1) return;              // cabe completo: se queda fijo y centrado
+  const txt=t.textContent, sep='\u00a0\u00a0\u00a0•\u00a0\u00a0\u00a0';
+  t.textContent=txt+sep+txt+sep;
+  const w=t.scrollWidth/2;
+  n.classList.add('mueve'); t.style.setProperty('--dist',(-w)+'px'); t.style.setProperty('--dur',Math.max(5,w/45)+'s');
+}
 
 /* ---- Paisaje (tiras que se repiten; versión de día y de noche) ---- */
 function rnd(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
@@ -2415,7 +2430,7 @@ function renderJornada(){
     $('#btnViajeCompleto').onclick=()=>formViaje(j,null);
   } else {
     $('#btnFinViaje').onclick=()=>flujoTerminarViaje(j);
-    actualizarEscena(j);
+    actualizarEscena(j); ajustarMarquesina();
     $('#avance').addEventListener('click',e=>{ const b=e.target.closest('[data-av]'); if(b) accionAvance(j,b.dataset.av); });
     $('#btnCancelViaje').onclick=()=>confirmar('¿Cancelar el viaje en curso? No se guardará.',()=>{ j.viajeActivo=null; save(j); render(); },'Cancelar viaje');
   }
