@@ -800,6 +800,59 @@ details summary{cursor:pointer;color:var(--text-secondary);font-size:14px;paddin
 .np-keys button:active{background:#3d3d39}
 .np-keys button[data-k="del"]{font-size:28px;color:var(--text-secondary)}
 input.numf{cursor:pointer;caret-color:transparent}
+/* ---- Letrero de calle ---- */
+.letrero{display:flex;align-items:center;gap:8px;background:#fff;color:#1b1b1b;border-radius:7px;padding:6px 9px;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #1b1b1b,0 2px 6px rgba(0,0,0,.4);margin:0 0 10px}
+.letrero .emb{width:30px;height:30px;flex:none}
+.letrero .txt{flex:1;min-width:0;text-align:center}
+.letrero .nom{font-family:"Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif;font-weight:800;letter-spacing:.03em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.letrero .sub{font-family:Arial,sans-serif;font-size:9px;font-weight:700;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.letrero .cdmx{flex:none;font:900 9px/1 Arial,sans-serif;color:#2f7d32;border:1.5px solid #2f7d32;border-radius:4px;padding:3px 3px}
+/* ---- Escena del viaje ---- */
+.escena{position:relative;height:172px;border-radius:12px;overflow:hidden;margin-top:4px;user-select:none}
+.escena.dia{background:linear-gradient(#6fbdf3,#cfeaff 72%)}
+.escena.noche{background:linear-gradient(#060b1c,#1b2748 76%)}
+.escena .cielo{position:absolute;inset:0}
+.escena .astro{position:absolute;top:12px;right:24px;width:26px;height:26px;border-radius:50%}
+.escena.dia .astro{background:#ffd84a;box-shadow:0 0 18px 7px rgba(255,216,74,.55)}
+.escena.noche .astro{background:transparent;box-shadow:inset -8px 3px 0 0 #f1efdc;filter:drop-shadow(0 0 6px rgba(241,239,220,.5))}
+.escena .estrellas{position:absolute;inset:0 0 50% 0;opacity:0;background-image:radial-gradient(1.4px 1.4px at 12% 22%,#fff 50%,transparent 51%),radial-gradient(1.2px 1.2px at 33% 12%,#fff 50%,transparent 51%),radial-gradient(1.5px 1.5px at 51% 30%,#fff 50%,transparent 51%),radial-gradient(1.1px 1.1px at 66% 16%,#fff 50%,transparent 51%),radial-gradient(1.3px 1.3px at 80% 34%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 24% 40%,#fff 50%,transparent 51%),radial-gradient(1.2px 1.2px at 44% 8%,#fff 50%,transparent 51%)}
+.escena.noche .estrellas{opacity:.9}
+.escena .nube{position:absolute;height:14px;width:50px;background:#fff;border-radius:14px;opacity:.9;animation:nube 60s linear infinite}
+.escena .nube:before{content:"";position:absolute;width:24px;height:22px;border-radius:50%;background:#fff;left:10px;top:-10px}
+.escena .n1{top:22px;left:20%}.escena .n2{top:44px;left:65%;transform:scale(.8);animation-duration:80s}
+.escena.noche .nube{opacity:0}
+@keyframes nube{from{translate:0}to{translate:-420px}}
+.escena .capa{position:absolute;left:0;right:0;background-repeat:repeat-x;background-position:0 100%}
+.escena .lejos{bottom:58px;height:90px;animation:mL 32s linear infinite}
+.escena .cerca{bottom:46px;height:78px;animation:mC 10s linear infinite}
+.escena.dia .lejos{background-image:var(--ed-d)} .escena.noche .lejos{background-image:var(--ed-n)}
+.escena.dia .cerca{background-image:var(--ca-d)} .escena.noche .cerca{background-image:var(--ca-n)}
+@keyframes mL{from{background-position-x:0}to{background-position-x:-640px}}
+@keyframes mC{from{background-position-x:0}to{background-position-x:-720px}}
+.escena .banqueta{position:absolute;left:0;right:0;bottom:40px;height:6px;background:#a3a39b}
+.escena.noche .banqueta{background:#4a4a52}
+.escena .calle{position:absolute;left:0;right:0;bottom:0;height:40px;background:#3d3d3b}
+.escena.noche .calle{background:#232327}
+.escena .raya{position:absolute;left:0;right:0;top:18px;height:3px;background:repeating-linear-gradient(90deg,#efefef 0 22px,transparent 22px 44px);animation:mR .7s linear infinite}
+@keyframes mR{from{background-position-x:0}to{background-position-x:-44px}}
+.escena.parado .capa,.escena.parado .raya,.escena.parado .nube{animation-play-state:paused}
+@media (prefers-reduced-motion:reduce){.escena .capa,.escena .raya,.escena .nube{animation:none}}
+.escena .ruta{position:absolute;left:8%;right:8%;bottom:6px;height:5px}
+.escena .riel{position:absolute;inset:0;border-radius:3px;background:rgba(255,255,255,.22)}
+.escena .prog{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:3px;background:#3987e5;transition:width 1s linear}
+.escena .prog.ok{background:#2fbf71}
+.escena .pt{position:absolute;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;font:800 10px/16px Arial,sans-serif;text-align:center;color:#fff;border:2px solid #121211}
+.escena .pt.a{left:-8px;background:#3987e5}.escena .pt.b{right:-8px;background:#55554f}.escena .pt.b.ok{background:#2fbf71}
+.escena .coche{position:absolute;bottom:13px;left:8%;width:52px;transition:left 1s linear;z-index:3}
+.escena .coche img{width:52px;height:auto;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45))}
+.escena .faros{position:absolute;left:46px;bottom:5px;width:78px;height:24px;display:none;background:linear-gradient(90deg,rgba(255,244,180,.85),rgba(255,244,180,0));clip-path:polygon(0 38%,100% 0,100% 100%,0 62%)}
+.escena.noche .faros{display:block}
+.escena .semaforo{position:absolute;left:62px;bottom:2px;width:16px;height:46px;display:none}
+.escena.rojo .semaforo{display:block;animation:apar .3s ease-out}
+@keyframes apar{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+.escena .etq{position:absolute;top:6px;font-size:10px;color:#fff;background:rgba(0,0,0,.45);padding:2px 6px;border-radius:6px}
+.escena .etq.izq{left:6px}.escena .etq.der{right:56px}
+
 .dir{margin-top:10px;font-size:16px;line-height:1.35;padding:10px 12px;border-radius:12px;background:var(--surface-2)}
 .trafico{margin-top:8px;padding:10px 12px;border-radius:12px;background:#3a1a1a;border:1px solid #7a2626;font-size:14px}
 .trafico b{color:#ffd0d0}
@@ -1239,7 +1292,7 @@ function actualizarEnVivo(){
   const lt=$('#liveTime'); if(lt&&j) lt.textContent=fmtDur(Date.now()-j.inicio);
   if(j && j.viajeActivo){
     const tt=$('#tripTime'); if(tt) tt.textContent=fmtCrono(Date.now()-j.viajeActivo.inicio);
-    const av=$('#avance'); if(av && !$('#np.open')) av.innerHTML=avanceHTML(j);
+    actualizarEscena(j);
   }
   const cl=$('#cargaLive'); const ca=cargaActiva(); if(cl && ca) cl.innerHTML=cargaLiveHTML(ca);
   const mv=$('#mapaSlotV'); if(mv && MV && ultimaPos && mv.dataset.ts!=String(ultimaPos.ts)){ mv.dataset.ts=ultimaPos.ts; dibujarMV(jornadaActiva(), false);
@@ -1629,7 +1682,7 @@ async function reverso(c, preferida){
   try{
     const d=await geoTurno(async()=>{ const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${c.lat}&lon=${c.lon}&zoom=18&addressdetails=1&accept-language=es`); if(!r.ok) throw new Error(r.status); return r.json(); });
     const a=d.address||{};
-    const dir={calle:a.road||a.pedestrian||a.residential||a.footway||(loc&&loc.calle)||'', colonia:a.neighbourhood||a.suburb||a.quarter||a.hamlet||(loc&&loc.colonia)||'', alcaldia: base.alcaldia || a.borough || a.city_district || a.county || ''};
+    const dir={calle:a.road||a.pedestrian||a.residential||a.footway||(loc&&loc.calle)||'', colonia:a.neighbourhood||a.suburb||a.quarter||a.hamlet||(loc&&loc.colonia)||'', alcaldia: base.alcaldia || a.borough || a.city_district || a.county || '', cp: a.postcode||''};
     if(geoCache.size>400) geoCache.clear(); geoCache.set(k,dir); return dir;
   }catch(e){ return loc||base; }
 }
@@ -1664,7 +1717,7 @@ function dirHTML(){
   const d=dirActual||{alcaldia:alcaldiaDe(ultimaPos)||'Fuera de la CDMX'};
   return `📍 <b>${esc(d.calle||'Calle sin nombre')}</b>${d.colonia?` · Col. ${esc(d.colonia)}`:''}${d.alcaldia?` · ${esc(d.alcaldia)}`:''}${!conInternet() && !d.calle?' <span class="muted">(sin internet: solo alcaldía; carga el mapa sin internet en Historial)</span>':''}`;
 }
-function pintarDireccion(){ const el=$('#dirLine'); if(el) el.innerHTML=dirHTML(); }
+function pintarDireccion(){ const el=$('#dirLine'); if(el) el.innerHTML=dirHTML(); if(typeof pintarLetrero==='function') pintarLetrero(); }
 
 /* ---- Tráfico: velocidad menor a 20 km/h sostenida durante el viaje ---- */
 const TRAF={vel:20, ventana:60, abrir:45, cerrar:30, minDur:60};   // km/h y segundos
@@ -2083,6 +2136,116 @@ async function compartirMapa(){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre; document.body.appendChild(a); a.click(); a.remove();
 }
 
+/* =================== Escena del viaje: letrero de calle, coche, día/noche, semáforo =================== */
+/* ---- ¿Es de noche? (salida y puesta del sol, aproximación NOAA) ---- */
+function solHoy(lat, lon, fecha){
+  const rad=Math.PI/180, d=fecha||new Date();
+  const N=Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(d.getFullYear(),0,0))/86400000);
+  const g=2*Math.PI/365*(N-1);
+  const ecu=229.18*(0.000075+0.001868*Math.cos(g)-0.032077*Math.sin(g)-0.014615*Math.cos(2*g)-0.040849*Math.sin(2*g));
+  const dec=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g);
+  const ha=Math.acos(Math.cos(90.833*rad)/(Math.cos(lat*rad)*Math.cos(dec))-Math.tan(lat*rad)*Math.tan(dec))/rad;
+  const base=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());
+  return { sale: base+(720-4*(lon+ha)-ecu)*60000, pone: base+(720-4*(lon-ha)-ecu)*60000 };
+}
+function esDeNoche(){
+  const p=ultimaPos||{lat:19.43, lon:-99.13}, now=Date.now(), s=solHoy(p.lat,p.lon,new Date());
+  return now < s.sale || now > s.pone;
+}
+/* ---- ¿Está detenido? (con GPS) ---- */
+function segundosDetenido(){
+  if(!crudo.length || gpsState!=='on') return 0;
+  const now=Date.now(), ult=crudo[crudo.length-1];
+  if(now-ult.ts>120000) return 0;
+  let desde=crudo[0].ts;
+  for(let i=crudo.length-1;i>=0;i--){ if(haversine(crudo[i],ult)*1000>8){ desde=crudo[i].ts; break; } }
+  return (now-desde)/1000;
+}
+
+/* ---- Letrero de calle (estilo nomenclatura CDMX, con emblemas genéricos) ---- */
+function letreroHTML(){
+  const d=dirActual, alc=(d&&d.alcaldia)|| (ultimaPos? alcaldiaDe(ultimaPos):'') || '';
+  const nombre = d&&d.calle? d.calle : ultimaPos? 'Calle sin nombre' : 'Buscando calle…';
+  const sub=[d&&d.colonia? 'COL. '+d.colonia : '', alc? 'ALC. '+alc : '', d&&d.cp? 'C.P. '+d.cp : ''].filter(Boolean).join('\u00a0\u00a0\u00a0');
+  const tam=Math.max(15, Math.min(34, Math.round(560/Math.max(8,nombre.length))));
+  return `<div class="letrero" role="img" aria-label="Calle ${esc(nombre)}">
+    <svg class="emb" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#77706a"/><path d="M12 4l2.2 5.2 5.6.4-4.3 3.6 1.4 5.5L12 15.8 7.1 18.7l1.4-5.5-4.3-3.6 5.6-.4z" fill="#fff" opacity=".9"/></svg>
+    <div class="txt"><div class="nom" style="font-size:${tam}px">${esc(nombre.toUpperCase())}</div><div class="sub">${esc(sub.toUpperCase())}</div></div>
+    <div class="cdmx" aria-hidden="true">CDMX</div></div>`;
+}
+function pintarLetrero(){ const el=$('#letrero'); if(el){ const h=letreroHTML(); if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } } }
+
+/* ---- Paisaje (tiras que se repiten; versión de día y de noche) ---- */
+function rnd(seed){ let s=seed; return ()=>{ s=(s*9301+49297)%233280; return s/233280; }; }
+const svgURL = s => "url('data:image/svg+xml,"+encodeURIComponent(s).replace(/'/g,'%27')+"')";
+function tiraEdificios(noche){
+  const r=rnd(7), W=640, H=90; let g='';
+  for(let x=0; x<W; ){ const w=34+Math.floor(r()*36), h=40+Math.floor(r()*48), c= noche? ['#1c2740','#222e4a','#1a2236'][Math.floor(r()*3)] : ['#b9c6d6','#a7b6c9','#c9d2dd','#9fb0c4'][Math.floor(r()*4)];
+    g+=`<rect x="${x}" y="${H-h}" width="${w-3}" height="${h}" fill="${c}"/>`;
+    for(let wy=H-h+6; wy<H-6; wy+=9) for(let wx=x+5; wx<x+w-9; wx+=8){ const on=r(); g+=`<rect x="${wx}" y="${wy}" width="4" height="5" fill="${noche? (on>0.45?'#ffd76a':'#2b3656') : (on>0.5?'#e8f1fb':'#8ea3bb')}"/>`; }
+    x+=w; }
+  return svgURL(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${g}</svg>`);
+}
+function tiraCasas(noche){
+  const W=720, H=78; let g='', x=0; const r=rnd(3);
+  const casa=(x,w,h,c)=>{ let s=`<rect x="${x}" y="${H-h}" width="${w}" height="${h}" fill="${noche? sombra(c):c}"/><rect x="${x-2}" y="${H-h-5}" width="${w+4}" height="6" fill="${noche?'#2a2a2a':'#6b4b3a'}"/>`;
+    s+=`<rect x="${x+w/2-6}" y="${H-24}" width="12" height="24" fill="${noche?'#3b2a1f':'#5a3d2b'}"/>`;
+    s+=`<rect x="${x+6}" y="${H-h+10}" width="14" height="12" fill="${noche?'#ffcf5a':'#d7ecff'}" stroke="#333" stroke-width="1"/><rect x="${x+w-20}" y="${H-h+10}" width="14" height="12" fill="${noche?(r()>.4?'#ffcf5a':'#26314a'):'#d7ecff'}" stroke="#333" stroke-width="1"/>`;
+    if(h>52) s+=`<rect x="${x+6}" y="${H-h+30}" width="14" height="12" fill="${noche?(r()>.5?'#ffcf5a':'#26314a'):'#d7ecff'}" stroke="#333" stroke-width="1"/>`;
+    return s; };
+  const arbol=x=>`<rect x="${x+5}" y="${H-22}" width="4" height="22" fill="#5a3d2b"/><circle cx="${x+7}" cy="${H-30}" r="12" fill="${noche?'#1e3a26':'#3f8f46'}"/>`;
+  const tienda=x=>`<rect x="${x}" y="${H-46}" width="92" height="46" fill="${noche?'#4b4b4b':'#efefef'}"/><rect x="${x}" y="${H-46}" width="92" height="12" fill="#d8262d"/><rect x="${x}" y="${H-34}" width="92" height="4" fill="#f2b705"/>
+    <text x="${x+46}" y="${H-37}" font-family="Arial" font-weight="900" font-size="9" fill="#fff" text-anchor="middle">TIENDA 24 H</text>
+    <rect x="${x+8}" y="${H-26}" width="76" height="26" fill="${noche?'#fff3b0':'#bfe3ff'}" opacity="${noche?.95:.9}"/><line x1="${x+46}" y1="${H-26}" x2="${x+46}" y2="${H}" stroke="#666"/>`;
+  const colores=['#e8823a','#f2c14e','#e98aa0','#8fc1e3','#c7e07a','#d9a066'];
+  const piezas=['c','c','a','t','c','a','c','c','a','c'];
+  piezas.forEach((p,i)=>{ if(p==='c'){ const w=52+Math.floor(r()*24), h=38+Math.floor(r()*26); g+=casa(x,w,h,colores[i%colores.length]); x+=w+6; }
+    else if(p==='a'){ g+=arbol(x); x+=22; } else { g+=tienda(x); x+=100; } });
+  return svgURL(`<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(W,x)}" height="${H}">${g}</svg>`);
+}
+function sombra(c){ const n=parseInt(c.slice(1),16); const f=v=>Math.round(v*.38); return '#'+[f(n>>16),f((n>>8)&255),f(n&255)].map(v=>v.toString(16).padStart(2,'0')).join(''); }
+let TIRAS=null;
+function tiras(){ if(!TIRAS) TIRAS={ edD:tiraEdificios(false), edN:tiraEdificios(true), caD:tiraCasas(false), caN:tiraCasas(true) }; return TIRAS; }
+const SEMAFORO=`<svg viewBox="0 0 16 46" aria-hidden="true"><rect x="7" y="20" width="2.5" height="26" fill="#444"/><rect x="2" y="0" width="12" height="28" rx="3" fill="#1b1b1b" stroke="#000"/>
+  <circle cx="8" cy="6" r="3.6" fill="#ff2a2a"/><circle cx="8" cy="6" r="6" fill="#ff2a2a" opacity=".35"/><circle cx="8" cy="14" r="3.4" fill="#3a3220"/><circle cx="8" cy="22" r="3.4" fill="#1f3322"/></svg>`;
+const logoAuto = () => { const i=document.querySelector('.logo-auto'); return i? i.src : ''; };
+
+function escenaHTML(j){
+  const T=tiras();
+  return `<div class="escena" id="escenaV" style="--ed-d:${T.edD};--ed-n:${T.edN};--ca-d:${T.caD};--ca-n:${T.caN}">
+    <div class="cielo"><div class="astro"></div><div class="estrellas"></div><div class="nube n1"></div><div class="nube n2"></div></div>
+    <div class="capa lejos"></div>
+    <div class="capa cerca"></div>
+    <div class="banqueta"></div>
+    <div class="calle"><div class="raya"></div></div>
+    <div class="ruta"><div class="riel"></div><div class="prog" id="escProg"></div>
+      <span class="pt a">A</span><span class="pt b" id="escB">B</span></div>
+    <div class="coche" id="escCoche"><div class="faros"></div><img alt="Tu coche" src="${logoAuto()}"><div class="semaforo">${SEMAFORO}</div></div>
+    <div class="etq izq">Inicio · km ${fmtNum(j.viajeActivo.kmIni)}</div><div class="etq der" id="escDest"></div>
+  </div>
+  <div id="avInfo" style="font-size:14px;margin-top:6px"></div>
+  <div class="av-acts" id="avActs"></div>`;
+}
+function actualizarEscena(j){
+  const va=j&&j.viajeActivo, e=$('#escenaV'); if(!va || !e) return;
+  const p=progresoViaje(j), px=p.pct==null? 0 : Math.min(1,p.pct), llego=p.pct!=null && px>=1;
+  const det=segundosDetenido(), noche=esDeNoche();
+  e.classList.toggle('noche',noche); e.classList.toggle('dia',!noche);
+  e.classList.toggle('parado', det>=3 || llego); e.classList.toggle('rojo', det>=10 && !llego);
+  const c=$('#escCoche'); if(c) c.style.left=`calc(8% + ${(px*84).toFixed(2)}% - 26px)`;
+  const pr=$('#escProg'); if(pr){ pr.style.width=(px*100).toFixed(2)+'%'; pr.classList.toggle('ok',llego); }
+  const b=$('#escB'); if(b) b.classList.toggle('ok',llego);
+  const dd=$('#escDest'); if(dd) dd.textContent= p.dist? 'Destino · '+fmtKm(p.dist) : 'Destino';
+  let info;
+  if(p.pct==null) info='Agrega la distancia o el tiempo que indica Uber para ver el avance.';
+  else if(p.fuente==='tiempo') info=`<b>${Math.round(px*100)}%</b> · ${fmtNum(p.trans/60000,0)} de ${p.min} min${p.dist?' · ~'+fmtKm(p.dist*px)+' de '+fmtKm(p.dist):''} <span class="muted">(estimado por tiempo)</span>`;
+  else info=`<b>${Math.round(px*100)}%</b> · ${fmtKm(p.rec)} de ${fmtKm(p.dist)} · faltan ${fmtKm(Math.max(0,p.dist-p.rec))} <span class="muted">(por ${p.fuente})</span>`;
+  if(det>=10 && !llego) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
+  const ai=$('#avInfo'); if(ai){ const h=(llego?'🏁 ¡Llegaste al destino estimado! ':'')+info; if(ai.dataset.h!==h){ ai.dataset.h=h; ai.innerHTML=h; } }
+  const ac=$('#avActs'); if(ac){ const h=`${p.dist && gpsState!=='on'?'<button data-av="odo">📍 Actualizar odómetro</button>':''}<button data-av="dest">🎯 ${p.dist||va.minEst?'Cambiar distancia / tiempo':'Agregar distancia / tiempo'}</button>`; if(ac.dataset.h!==h){ ac.dataset.h=h; ac.innerHTML=h; } }
+  pintarLetrero();
+}
+
 /* =================== Vista: Jornada =================== */
 let tick=null;
 const r2 = n => Math.round(n*100)/100;
@@ -2218,9 +2381,9 @@ function renderJornada(){
     </div>
     ${va? `
     <div class="card best">
-      <h2>Viaje en curso</h2>
+      <div id="letrero">${letreroHTML()}</div>
       <div class="muted">Viaje #${j.viajes.length+1} · desde ${fmtHora(va.inicio)} · odómetro ${fmtNum(va.kmIni)} km${va.autIni!=null?' · autonomía '+fmtNum(va.autIni)+' km':''}${va.gpsKm? ' · GPS '+fmtKm(va.gpsKm):''}</div>
-      <div id="avance">${avanceHTML(j)}</div>
+      <div id="avance">${escenaHTML(j)}</div>
       <div id="trafLive">${va.traficoActual? tramoHTML(va.traficoActual,true):''}</div>
       ${(va.trafico||[]).map(t=>tramoHTML(t)).join('')}
       <div class="muted" style="font-size:12px;margin-top:6px">🧭 Inicio: ${va.coordIni? `<a href="${gmaps(va.coordIni)}" target="_blank" rel="noopener" style="color:var(--accent)">${fmtCoord(va.coordIni)}</a> (${zona(va.coordIni)})` : 'sin ubicación — toca «Obtener ubicación» en el mapa'}</div>
@@ -2252,6 +2415,7 @@ function renderJornada(){
     $('#btnViajeCompleto').onclick=()=>formViaje(j,null);
   } else {
     $('#btnFinViaje').onclick=()=>flujoTerminarViaje(j);
+    actualizarEscena(j);
     $('#avance').addEventListener('click',e=>{ const b=e.target.closest('[data-av]'); if(b) accionAvance(j,b.dataset.av); });
     $('#btnCancelViaje').onclick=()=>confirmar('¿Cancelar el viaje en curso? No se guardará.',()=>{ j.viajeActivo=null; save(j); render(); },'Cancelar viaje');
   }
