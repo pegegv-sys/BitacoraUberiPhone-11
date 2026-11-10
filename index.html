@@ -1242,6 +1242,8 @@ function actualizarEnVivo(){
     const av=$('#avance'); if(av && !$('#np.open')) av.innerHTML=avanceHTML(j);
   }
   const cl=$('#cargaLive'); const ca=cargaActiva(); if(cl && ca) cl.innerHTML=cargaLiveHTML(ca);
+  const mv=$('#mapaSlotV'); if(mv && MV && ultimaPos && mv.dataset.ts!=String(ultimaPos.ts)){ mv.dataset.ts=ultimaPos.ts; dibujarMV(jornadaActiva(), false);
+    const mt=$('#mapaTxt'); if(mt) mt.innerHTML=`Estás en <b>${zona(ultimaPos)}</b> · <span class="muted">${fmtCoord(ultimaPos)} (±${ultimaPos.acc} m) · ${fmtHora(ultimaPos.ts)}</span>`; }
   const ms=$('#mapaSlot'); if(ms && LM && ultimaPos && ms.dataset.ts!=String(ultimaPos.ts)){ ms.dataset.ts=ultimaPos.ts; dibujarLM(jornadaActiva(), false);
     const mt=$('#mapaTxt'); if(mt) mt.innerHTML=`Estás en <b>${zona(ultimaPos)}</b> · <span class="muted">${fmtCoord(ultimaPos)} (±${ultimaPos.acc} m) · ${fmtHora(ultimaPos.ts)}</span> · <a href="${gmaps(ultimaPos)}" target="_blank" rel="noopener" style="color:var(--accent)">Abrir en Google Maps</a>`; }
   const mb=$('#mapaBox'); if(mb && ultimaPos && mb.dataset.ts!=String(ultimaPos.ts)){ mb.dataset.ts=ultimaPos.ts; mb.innerHTML=mapaDeJornada(jornadaActiva(), ultimaPos);
@@ -1464,11 +1466,11 @@ function puntosDelDia(j){
   return r;
 }
 function mapaCardHTML(j){
-  const pos=ultimaPos, calles=mapaCalles();
-  if(calles && (mapaModo==='auto')) mapaModo='seguir';
+  const pos=ultimaPos, vec=mapaVector(), calles=!vec && mapaCalles();
+  if((vec||calles) && (mapaModo==='auto')) mapaModo='seguir';
   return `<div class="card"><h2>🗺️ ¿Dónde está el coche?</h2>
-    ${calles? `<div class="seg" id="mapaModo" style="margin-bottom:8px"><button data-m="seguir" class="${mapaModo==='seguir'?'on':''}">🎯 Seguir coche</button><button data-m="ruta" class="${mapaModo==='ruta'?'on':''}">🔍 Recorridos</button><button data-m="cdmx" class="${mapaModo==='cdmx'?'on':''}">CDMX</button></div>
-      <div id="mapaSlot" style="height:400px;border-radius:12px;overflow:hidden;background:#1b1b1a"></div>`
+    ${vec||calles? `<div class="seg" id="mapaModo" style="margin-bottom:8px"><button data-m="seguir" class="${mapaModo==='seguir'?'on':''}">🎯 Seguir coche</button><button data-m="ruta" class="${mapaModo==='ruta'?'on':''}">🔍 Recorridos</button><button data-m="cdmx" class="${mapaModo==='cdmx'?'on':''}">CDMX</button></div>
+      <div id="${vec?'mapaSlotV':'mapaSlot'}" style="height:400px;border-radius:12px;overflow:hidden;background:#1b1b1a"></div>`
     : `<div class="seg" id="mapaModo" style="margin-bottom:8px"><button data-m="ruta" class="${mapaModo!=='cdmx'?'on':''}">🔍 Acercar a recorridos</button><button data-m="cdmx" class="${mapaModo==='cdmx'?'on':''}">CDMX completa</button></div>
       <div id="mapaBox">${mapaDeJornada(j,pos)}</div>`}
     ${leyendaRutas(j||{viajes:[]})}
@@ -1476,10 +1478,12 @@ function mapaCardHTML(j){
     ${puntosDelDia(j).length && !rutasDeJornada(j).some(r=>r.tipo==='viaje')?'<div class="legend" style="margin-top:6px"><span style="--c:#3987e5">Inicio de viaje</span><span style="--c:#2fbf71">Destino de viaje</span></div>':''}
     ${j && !rutasDeJornada(j).length?'<div class="muted" style="font-size:12px;margin-top:6px">El recorrido se dibuja mientras la app está abierta con el GPS activo.</div>':''}
     <button class="btn go" id="btnUbic" style="padding:16px">📍 Obtener ubicación</button>
-    <div class="muted" style="font-size:11px;margin-top:6px">${calles? 'Mapa de calles: © OpenStreetMap (usa internet). Sin conexión se muestra el mapa de alcaldías.' : 'Límites de alcaldías: INEGI, Marco Geoestadístico. Este mapa funciona sin internet'+(window.L&&!enClaude()?'; con internet verás las calles.':'.')}</div></div>`;
+    <div class="muted" style="font-size:11px;margin-top:6px">${vec? 'Mapa guardado en el teléfono (funciona sin internet): © OpenStreetMap · Protomaps.' : calles? 'Mapa de calles: © OpenStreetMap (usa internet). Sin conexión se muestra el mapa de alcaldías.' : 'Límites de alcaldías: INEGI, Marco Geoestadístico. Este mapa funciona sin internet'+(window.L&&!enClaude()?'; con internet verás las calles.':'.')}</div></div>`;
 }
 function conectarMapaModo(j){ const m=$('#mapaModo'); if(m) m.onclick=e=>{ const b=e.target.closest('[data-m]'); if(!b) return; mapaModo=b.dataset.m;
-    if($('#mapaSlot') && LM){ marcarModo(); LMauto=true; dibujarLM(jornadaActiva(), true); } else render(); };
+    if($('#mapaSlotV') && MV){ marcarModo(); dibujarMV(jornadaActiva()||MVj, true); }
+    else if($('#mapaSlot') && LM){ marcarModo(); LMauto=true; dibujarLM(jornadaActiva(), true); } else render(); };
+  if($('#mapaSlotV')) montarMapaVector(j);
   if($('#mapaSlot')) montarMapaCalles(j); }
 async function accionUbicacion(j){
   const btn=$('#btnUbic'); if(btn){ btn.disabled=true; btn.textContent='Buscando señal GPS…'; }
@@ -1615,20 +1619,23 @@ const normCalle = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀
 /* ---- Geocodificación inversa (OpenStreetMap / Nominatim): máximo 1 consulta por segundo, con caché ---- */
 const geoCache=new Map(); let geoCola=Promise.resolve(), geoUlt=0;
 function geoTurno(fn){ const p=geoCola.then(async()=>{ const w=Math.max(0,1100-(Date.now()-geoUlt)); if(w) await new Promise(r=>setTimeout(r,w)); geoUlt=Date.now(); return fn(); }); geoCola=p.catch(()=>{}); return p; }
-async function reverso(c){
-  const k=c.lat.toFixed(4)+','+c.lon.toFixed(4);
+async function reverso(c, preferida){
+  const k=c.lat.toFixed(4)+','+c.lon.toFixed(4)+'|'+(preferida||'');
   if(geoCache.has(k)) return geoCache.get(k);
   const base={calle:'', colonia:'', alcaldia: alcaldiaDe(c)||''};
-  if(!conInternet()) return base;
+  const loc = MO? await reversoLocal(c, preferida) : null;          // primero el mapa guardado en el teléfono (sin internet)
+  if(loc){ delete loc._rutas; if(loc.calle && (loc.colonia || !conInternet())){ geoCache.set(k,loc); return loc; } }
+  if(!conInternet()) return loc||base;
   try{
     const d=await geoTurno(async()=>{ const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${c.lat}&lon=${c.lon}&zoom=18&addressdetails=1&accept-language=es`); if(!r.ok) throw new Error(r.status); return r.json(); });
     const a=d.address||{};
-    const dir={calle:a.road||a.pedestrian||a.residential||a.footway||'', colonia:a.neighbourhood||a.suburb||a.quarter||a.hamlet||'', alcaldia: base.alcaldia || a.borough || a.city_district || a.county || ''};
+    const dir={calle:a.road||a.pedestrian||a.residential||a.footway||(loc&&loc.calle)||'', colonia:a.neighbourhood||a.suburb||a.quarter||a.hamlet||(loc&&loc.colonia)||'', alcaldia: base.alcaldia || a.borough || a.city_district || a.county || ''};
     if(geoCache.size>400) geoCache.clear(); geoCache.set(k,dir); return dir;
-  }catch(e){ return base; }
+  }catch(e){ return loc||base; }
 }
 /* Calle que cruza cerca de un punto (OpenStreetMap / Overpass), para describir «del cruce con … al cruce con …» */
 async function cruceCercano(c, calle){
+  if(MO){ const r=await cruceLocal(c,calle); if(r || (r!=null && !conInternet())) return r||''; }
   if(!conInternet()) return '';
   try{
     const q=`[out:json][timeout:12];way(around:45,${c.lat},${c.lon})[highway][name];out tags geom;`;
@@ -1639,7 +1646,7 @@ async function cruceCercano(c, calle){
     return mejor;
   }catch(e){ return ''; }
 }
-async function dirConCruce(c){ const d=await reverso(c); const cruce= d.calle? await cruceCercano(c,d.calle) : ''; return {...d, cruce}; }
+async function dirConCruce(c, preferida){ const d=await reverso(c, preferida); const cruce= d.calle? await cruceCercano(c,d.calle) : ''; return {...d, cruce}; }
 const textoDir = d => !d? '' : [d.calle, d.colonia? 'Col. '+d.colonia : '', d.alcaldia].filter(Boolean).join(' · ');
 
 /* ---- Dirección actual (debajo del cronómetro) ---- */
@@ -1650,12 +1657,12 @@ function actualizarDireccion(){
   if(!(mov>120 || (mov>30 && edad>45000) || !dirActual)) return;
   if(edad<15000 && dirActual) return;
   dirPend=true; const p0={...pos};
-  reverso(p0).then(d=>{ dirActual=d; dirPos=p0; dirTs=Date.now(); pintarDireccion(); }).finally(()=>dirPend=false);
+  reverso(p0, dirActual&&dirActual.calle).then(d=>{ dirActual=d; dirPos=p0; dirTs=Date.now(); pintarDireccion(); }).finally(()=>dirPend=false);
 }
 function dirHTML(){
   if(!ultimaPos) return '<span class="muted">📍 Esperando GPS para mostrar la calle…</span>';
   const d=dirActual||{alcaldia:alcaldiaDe(ultimaPos)||'Fuera de la CDMX'};
-  return `📍 <b>${esc(d.calle||'Calle sin nombre')}</b>${d.colonia?` · Col. ${esc(d.colonia)}`:''}${d.alcaldia?` · ${esc(d.alcaldia)}`:''}${!conInternet()?' <span class="muted">(sin internet: solo alcaldía)</span>':''}`;
+  return `📍 <b>${esc(d.calle||'Calle sin nombre')}</b>${d.colonia?` · Col. ${esc(d.colonia)}`:''}${d.alcaldia?` · ${esc(d.alcaldia)}`:''}${!conInternet() && !d.calle?' <span class="muted">(sin internet: solo alcaldía; carga el mapa sin internet en Historial)</span>':''}`;
 }
 function pintarDireccion(){ const el=$('#dirLine'); if(el) el.innerHTML=dirHTML(); }
 
@@ -1695,7 +1702,7 @@ function abrirTramo(j, desde){
   va.traficoActual={id:uid(), ini, km:+km.toFixed(3)};
   save(j); render(); toast('🐢 Tráfico detectado (menos de '+TRAF.vel+' km/h)');
   const id=va.traficoActual.id;
-  dirConCruce(ini).then(d=>{ const t=buscarTramo(j,id); if(t){ t.ini.dir=d; t.desc=descTramo(t); save(j); render(); } });
+  dirConCruce(ini, dirActual&&dirActual.calle).then(d=>{ const t=buscarTramo(j,id); if(t){ t.ini.dir=d; t.desc=descTramo(t); save(j); render(); } });
 }
 function cerrarTramoTrafico(j, hasta, sinGeo){
   const va=j.viajeActivo, t=va&&va.traficoActual; if(!t) return;
@@ -1705,7 +1712,7 @@ function cerrarTramoTrafico(j, hasta, sinGeo){
   t.min=+((fin.ts-t.ini.ts)/60000).toFixed(1); t.vel= t.min>0? +(t.km/(t.min/60)).toFixed(1) : 0;
   va.traficoActual=null;
   if(t.min*60 >= TRAF.minDur){ (va.trafico=va.trafico||[]).push(t); t.desc=descTramo(t);
-    if(!sinGeo) dirConCruce(fin).then(d=>{ const x=buscarTramo(j,t.id); if(x){ x.fin.dir=d; x.desc=descTramo(x); save(j); render(); } }); }
+    if(!sinGeo) dirConCruce(fin, t.ini&&t.ini.dir&&t.ini.dir.calle).then(d=>{ const x=buscarTramo(j,t.id); if(x){ x.fin.dir=d; x.desc=descTramo(x); save(j); render(); } }); }
   save(j); render();
 }
 function sumarKmTramo(j,d){ const t=j&&j.viajeActivo&&j.viajeActivo.traficoActual; if(t) t.km=+(t.km+d).toFixed(3); }
@@ -1779,6 +1786,301 @@ function dibujarLM(j, ajustar){
   if(mapaModo==='seguir' && pos){ if(ajustar || LMauto){ LM.setView([pos.lat,pos.lon], Math.max(LM.getZoom(),16)); LMauto=false; } else LM.panTo([pos.lat,pos.lon],{animate:true}); }
   else if(ajustar && mapaModo==='ruta' && todos.length) LM.fitBounds(todos,{padding:[30,30],maxZoom:16});
   else if(ajustar && mapaModo==='cdmx') LM.fitBounds([[19.0482,-99.3649],[19.5928,-98.9403]]);
+}
+
+/* =================== Mapa de la CDMX sin internet (Protomaps .pmtiles guardado en el teléfono) =================== */
+const MAPA_CACHE='bitacora-mapa-offline', MAPA_CLAVE='./mapa-guardado.pmtiles';
+let MO=null, MOcargando=null, MOinfo=null;      // MO = {pm, header}
+function cargarRecurso(src, css){ return new Promise((ok,mal)=>{ const e=document.createElement(css?'link':'script');
+  if(css){ e.rel='stylesheet'; e.href=src; } else e.src=src; e.onload=ok; e.onerror=()=>mal(new Error('No se pudo cargar '+src)); document.head.appendChild(e); }); }
+async function cargarLibsMapa(){
+  if(window.maplibregl && window.MapaOffline) return;
+  await Promise.all([cargarRecurso('maplibre-gl.css',true), cargarRecurso('maplibre-gl.js'), cargarRecurso('mapa-offline.js')]);   // archivos sueltos (sin carpetas) para subir fácil a GitHub desde el iPad
+}
+async function leerMapaGuardado(){ try{ if(!('caches' in window)) return null; const c=await caches.open(MAPA_CACHE); return await c.match(MAPA_CLAVE); }catch(e){ return null; } }
+async function iniciarMapaOffline(){
+  if(MO) return MO; if(enClaude()) return null;
+  if(MOcargando) return MOcargando;
+  MOcargando=(async()=>{
+    const r=await leerMapaGuardado(); if(!r) return null;
+    MOinfo={nombre:r.headers.get('X-Nombre')||'mapa', fecha:+(r.headers.get('X-Fecha')||0), bytes:+(r.headers.get('X-Bytes')||0)};
+    await cargarLibsMapa();
+    const blob=await r.blob(); const {PMTiles,FileSource,Protocol}=window.MapaOffline;
+    const pm=new PMTiles(new FileSource(new File([blob],'cdmx.pmtiles')));
+    const header=await pm.getHeader();
+    const proto=new Protocol(); proto.add(pm);
+    try{ maplibregl.addProtocol('pmtiles',proto.tile); }catch(e){}
+    MO={pm,header}; return MO;
+  })().catch(e=>{ console.warn(e); MOcargando=null; return null; });
+  return MOcargando;
+}
+async function esPMTiles(blob){ const b=new Uint8Array(await blob.slice(0,7).arrayBuffer()); return String.fromCharCode(...b)==='PMTiles'; }
+async function guardarMapa(blob, nombre){
+  if(!(await esPMTiles(blob))) throw new Error('Ese archivo no es un mapa .pmtiles');
+  const c=await caches.open(MAPA_CACHE);
+  await c.put(MAPA_CLAVE, new Response(blob,{headers:{'Content-Type':'application/octet-stream','X-Nombre':nombre,'X-Fecha':String(Date.now()),'X-Bytes':String(blob.size)}}));
+  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+  MO=null; MOcargando=null; MV=null; MVel=null; await iniciarMapaOffline();
+}
+async function borrarMapa(){ try{ const c=await caches.open(MAPA_CACHE); await c.delete(MAPA_CLAVE); }catch(e){} MO=null; MOcargando=null; MOinfo=null; if(MV){ try{ MV.remove(); }catch(e){} } MV=null; MVel=null; }
+const fmtMB = b => (b/1048576).toLocaleString('es-MX',{maximumFractionDigits:1})+' MB';
+
+/* ---- Tarjeta para cargar el mapa ---- */
+function mapaOfflineCardHTML(){
+  if(enClaude()) return `<div class="card"><h2>🗺️ Mapa sin internet</h2><div class="muted">Disponible en la versión instalada (GitHub) de tu iPhone, iPad o Moto G34.</div></div>`;
+  if(MO && MOinfo) return `<div class="card best"><h2>🗺️ Mapa sin internet · listo</h2>
+    <div class="sec">✅ ${esc(MOinfo.nombre)} · ${fmtMB(MOinfo.bytes)} · guardado el ${MOinfo.fecha? new Date(MOinfo.fecha).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}):'—'}</div>
+    <div class="muted" style="margin-top:6px">El mapa con nombres de calles, la calle debajo del cronómetro y los cruces del tráfico funcionan sin internet.</div>
+    <div id="moProg" class="muted" style="margin-top:8px"></div>
+    <button class="btn sec2 small" id="moCompartir">📤 Pasar este mapa a otro dispositivo (AirDrop, WhatsApp…)</button>
+    <button class="btn sec2 small" id="moDescargar">🔄 Actualizar: descargar el mapa de nuevo</button>
+    <button class="btn sec2 small" id="moArchivo">Reemplazar con otro archivo</button>
+    <button class="btn danger small" id="moBorrar">Borrar mapa de este dispositivo</button>
+    <input type="file" id="moInput" hidden></div>`;
+  return `<div class="card"><h2>🗺️ Mapa sin internet</h2>
+    <p class="sec" style="margin-top:0">Guarda el mapa de la CDMX en este dispositivo para ver los nombres de las calles sin internet.</p>
+    <button class="btn go" id="moDescargar">🌐 Descargar el mapa aquí (sin computadora)</button>
+    <div class="muted" style="font-size:13px;margin-top:6px">Usa Wi-Fi y deja la app abierta en pantalla mientras descarga (unos minutos).</div>
+    <div id="moProg" class="muted" style="margin-top:8px"></div>
+    <div class="muted" style="font-size:13px;margin-top:12px">¿Ya tienes el archivo <b>cdmx.pmtiles</b> (de tu computadora o de otro dispositivo)?</div>
+    <button class="btn sec2 small" id="moArchivo">📂 Cargar mapa desde archivo</button>
+    <button class="btn sec2 small" id="moGithub">⬇️ Descargar desde mi GitHub (si lo subiste ahí)</button>
+    <input type="file" id="moInput" hidden></div>`;
+}
+function conectarMapaOfflineCard(){
+  const inp=$('#moInput'), ar=$('#moArchivo'), gh=$('#moGithub'), bo=$('#moBorrar'), pr=$('#moProg');
+  const dl=$('#moDescargar'); if(dl) dl.onclick=flujoDescargarMapa;
+  const cm=$('#moCompartir'); if(cm) cm.onclick=compartirMapa;
+  if(descargaMapa && pr) pr.textContent='Descarga en curso…';
+  if(ar && inp){ ar.onclick=()=>inp.click(); inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
+      ar.disabled=true; ar.textContent='Guardando mapa ('+fmtMB(f.size)+')…';
+      try{ await guardarMapa(f, f.name); toast('Mapa guardado en el teléfono ✔'); }catch(e){ toast(e.message||'No se pudo guardar el mapa'); }
+      render(); }; }
+  if(gh) gh.onclick=async()=>{
+    gh.disabled=true;
+    for(const nombre of ['cdmx.pmtiles','cdmx-conurbada.pmtiles']){
+      try{
+        const r=await fetch(nombre,{cache:'no-store'}); if(!r.ok) continue;
+        const total=+(r.headers.get('Content-Length')||0), lector=r.body.getReader(), partes=[]; let n=0;
+        for(;;){ const {done,value}=await lector.read(); if(done) break; partes.push(value); n+=value.length; if(pr) pr.textContent=`Descargando ${nombre}: ${fmtMB(n)}${total?' de '+fmtMB(total)+' ('+Math.round(n/total*100)+'%)':''}…`; }
+        await guardarMapa(new Blob(partes), nombre); toast('Mapa guardado en el teléfono ✔'); render(); return;
+      }catch(e){ if(pr) pr.textContent=e.message; }
+    }
+    if(pr) pr.textContent='No encontré cdmx.pmtiles en tu GitHub. Usa «Cargar mapa desde archivo».'; gh.disabled=false;
+  };
+  if(bo) bo.onclick=()=>confirmar('¿Borrar el mapa sin internet de este teléfono?',async()=>{ await borrarMapa(); render(); },'Borrar mapa');
+}
+
+/* ---- Calles y colonias leídas del archivo (sin internet) ---- */
+const R_TIERRA=6378137;
+async function mosaicoEn(c, z){
+  z=Math.min(z, MO.header.maxZoom); const n=2**z;
+  const fx=(c.lon+180)/360*n, fy=(1-Math.asinh(Math.tan(c.lat*Math.PI/180))/Math.PI)/2*n;
+  const x=Math.floor(fx), y=Math.floor(fy);
+  const r=await MO.pm.getZxy(z,x,y); if(!r || !r.data) return null;
+  const {VectorTile,Pbf}=window.MapaOffline; const vt=new VectorTile(new Pbf(new Uint8Array(r.data)));
+  const mPorTile = 2*Math.PI*R_TIERRA*Math.cos(c.lat*Math.PI/180)/n;
+  return {vt, fx:fx-x, fy:fy-y, mPorTile};
+}
+function distSeg(px,py,ax,ay,bx,by){ const dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy; let t=L? ((px-ax)*dx+(py-ay)*dy)/L : 0; t=Math.max(0,Math.min(1,t)); const qx=ax+t*dx, qy=ay+t*dy; return Math.hypot(px-qx,py-qy); }
+function cercanos(m, capa, filtro){
+  const L=m.vt.layers[capa]; if(!L) return [];
+  const ext=L.extent||4096, px=m.fx*ext, py=m.fy*ext, mu=m.mPorTile/ext, out=[];
+  for(let i=0;i<L.length;i++){ const f=L.feature(i), p=f.properties||{}; if(filtro && !filtro(p)) continue;
+    let d=Infinity; for(const parte of f.loadGeometry()){ if(parte.length===1) d=Math.min(d,Math.hypot(px-parte[0].x,py-parte[0].y));
+      for(let k=1;k<parte.length;k++) d=Math.min(d,distSeg(px,py,parte[k-1].x,parte[k-1].y,parte[k].x,parte[k].y)); }
+    out.push({p, m:d*mu}); }
+  return out.sort((a,b)=>a.m-b.m);
+}
+const nombreDe = p => p['name:es'] || p.name || '';
+async function reversoLocal(c, preferida){
+  if(!MO) return null;
+  try{
+    const m=await mosaicoEn(c,15); if(!m) return null;
+    const calles=cercanos(m,'roads',p=>!!nombreDe(p) && p.kind!=='path');
+    const pref = preferida && calles.find(x=>x.m<30 && normCalle(nombreDe(x.p))===normCalle(preferida));
+    const calle = pref? nombreDe(pref.p) : calles.length && calles[0].m<70? nombreDe(calles[0].p) : '';
+    let colonia='';
+    const m2=await mosaicoEn(c,14);
+    const pl = m2? cercanos(m2,'places',p=>!!nombreDe(p) && /neighbourhood|macrohood|suburb|quarter/.test(p.kind||'')) : [];
+    if(pl.length && pl[0].m<1500) colonia=nombreDe(pl[0].p);
+    return {calle, colonia, alcaldia: alcaldiaDe(c)||'', _local:true, _rutas:calles};
+  }catch(e){ return null; }
+}
+async function cruceLocal(c, calle){
+  if(!MO) return null;
+  try{ const m=await mosaicoEn(c,15); if(!m) return null; const nc=normCalle(calle);
+    const r=cercanos(m,'roads',p=>!!nombreDe(p) && normCalle(nombreDe(p))!==nc && p.kind!=='path');
+    return r.length && r[0].m<50? nombreDe(r[0].p) : ''; }catch(e){ return null; }
+}
+
+/* ---- Mapa vectorial (MapLibre) ---- */
+let MV=null, MVel=null, MVcoche=null;
+const mapaVector = () => !!MO && !!window.maplibregl;
+const baseApp = () => location.href.split('#')[0].split('?')[0].replace(/[^/]*$/,'');
+function estiloVector(){
+  const {layers,namedFlavor}=window.MapaOffline;
+  const capas=layers('protomaps', namedFlavor('dark'), {lang:'es'}).filter(l=>!(l.layout && l.layout['icon-image']));
+  return { version:8, glyphs: location.href.split('#')[0].split('?')[0].replace(/[^/]*$/,'')+'fonts/{fontstack}/{range}.pbf',
+    sources:{ protomaps:{type:'vector', url:'pmtiles://cdmx.pmtiles', attribution:'© OpenStreetMap · Protomaps'} }, layers:capas };
+}
+function iniciarMV(){
+  MVel=document.createElement('div'); MVel.style.cssText='height:100%;width:100%';
+  const h=MO.header;
+  MV=new maplibregl.Map({container:MVel, style:estiloVector(),
+    transformRequest:(url,tipo)=>{ if(tipo==='Glyphs'){ const m=decodeURIComponent(url).match(/fonts\/Noto Sans (\w+)\/(\d+-\d+)\.pbf/); if(m) return {url: baseApp()+'letra-'+m[1].toLowerCase()+'-'+m[2]+'.pbf'}; } }, center:[(h.minLon+h.maxLon)/2,(h.minLat+h.maxLat)/2], zoom:12, maxZoom:18, attributionControl:{compact:true}});
+  MV.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+  MV.on('load',()=>{
+    const vacio={type:'FeatureCollection',features:[]};
+    ['rutas','trafico','puntos'].forEach(id=>MV.addSource(id,{type:'geojson',data:vacio}));
+    MV.addLayer({id:'libre',type:'line',source:'rutas',filter:['==',['get','tipo'],'libre'],paint:{'line-color':'#9a9a92','line-width':3,'line-dasharray':[2,2]}});
+    MV.addLayer({id:'viaje-borde',type:'line',source:'rutas',filter:['==',['get','tipo'],'viaje'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#121211','line-width':9,'line-opacity':.6}});
+    MV.addLayer({id:'viaje',type:'line',source:'rutas',filter:['==',['get','tipo'],'viaje'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','color'],'line-width':5.5}});
+    MV.addLayer({id:'trafico',type:'line',source:'trafico',layout:{'line-cap':'round'},paint:{'line-color':'#dc3b3b','line-width':7}});
+    MV.addLayer({id:'p-ini',type:'circle',source:'puntos',filter:['==',['get','t'],'ini'],paint:{'circle-radius':6,'circle-color':'#ffffff','circle-stroke-color':['get','color'],'circle-stroke-width':3}});
+    MV.addLayer({id:'p-fin',type:'circle',source:'puntos',filter:['==',['get','t'],'fin'],paint:{'circle-radius':11,'circle-color':['get','color'],'circle-stroke-color':'#121211','circle-stroke-width':2}});
+    MV.addLayer({id:'p-fin-n',type:'symbol',source:'puntos',filter:['==',['get','t'],'fin'],layout:{'text-field':['to-string',['get','n']],'text-font':['Noto Sans Medium'],'text-size':12,'text-allow-overlap':true},paint:{'text-color':'#121211'}});
+    MV._listo=true; dibujarMV(jornadaActiva()||MVj, true);
+  });
+  const el=document.createElement('div'); el.style.filter='drop-shadow(0 2px 3px rgba(0,0,0,.6))';
+  el.innerHTML=`<svg width="44" height="23" viewBox="-1 -1 47 21">${CARRO}</svg>`;
+  MVcoche=new maplibregl.Marker({element:el, anchor:'bottom'});
+  MV.on('dragstart',()=>{ if(mapaModo==='seguir'){ mapaModo='libre'; marcarModo(); } });
+}
+let MVj=null;
+function montarMapaVector(j){
+  const slot=$('#mapaSlotV'); if(!slot || !mapaVector()) return;
+  MVj=j; if(!MV) iniciarMV();
+  slot.appendChild(MVel); MV.resize(); if(MV._listo) dibujarMV(j,true);
+}
+function dibujarMV(j, ajustar){
+  if(!MV || !MV._listo) return;
+  const rutas=rutasDeJornada(j), pos=ultimaPos, ord=j? j.viajes.slice().sort((a,b)=>a.inicio-b.inicio) : [];
+  const L=pts=>pts.map(p=>[p[1],p[0]]);
+  const fR=[], fT=[], fP=[], todos=[];
+  rutas.forEach(r=>{ if(r.pts.length<2) return; fR.push({type:'Feature',properties:{tipo:r.tipo,color:r.color||'#9a9a92'},geometry:{type:'LineString',coordinates:L(r.pts)}}); todos.push(...L(r.pts));
+    if(r.tipo==='viaje'){ const v=r.activo? j.viajeActivo : ord[r.n-1];
+      segmentosTrafico(r,v).forEach(s=>fT.push({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:L(s)}}));
+      fP.push({type:'Feature',properties:{t:'ini',color:r.color},geometry:{type:'Point',coordinates:L([r.pts[0]])[0]}});
+      if(!r.activo) fP.push({type:'Feature',properties:{t:'fin',color:r.color,n:r.n},geometry:{type:'Point',coordinates:L([r.pts[r.pts.length-1]])[0]}}); } });
+  MV.getSource('rutas').setData({type:'FeatureCollection',features:fR});
+  MV.getSource('trafico').setData({type:'FeatureCollection',features:fT});
+  MV.getSource('puntos').setData({type:'FeatureCollection',features:fP});
+  if(pos){ MVcoche.setLngLat([pos.lon,pos.lat]).addTo(MV); }
+  if(mapaModo==='seguir' && pos){ if(ajustar) MV.jumpTo({center:[pos.lon,pos.lat], zoom:Math.max(MV.getZoom(),16)}); else MV.easeTo({center:[pos.lon,pos.lat],duration:600}); }
+  else if(ajustar && mapaModo==='ruta' && todos.length){ const b=new maplibregl.LngLatBounds(todos[0],todos[0]); todos.forEach(p=>b.extend(p)); MV.fitBounds(b,{padding:40,maxZoom:16,duration:0}); }
+  else if(ajustar && mapaModo==='cdmx') MV.fitBounds([[-99.3649,19.0482],[-98.9403,19.5928]],{padding:10,duration:0});
+}
+
+/* =================== Descargar el mapa de la CDMX desde el propio teléfono o iPad =================== */
+const ZONAS_MAPA={
+  cdmx:{nombre:'cdmx', titulo:'Solo Ciudad de México', bbox:[-99.375,19.035,-98.935,19.600]},
+  conurbada:{nombre:'cdmx-conurbada', titulo:'CDMX + zona conurbada', bbox:[-99.45,19.00,-98.85,19.75]}
+};
+const MAPA_MINZOOM=8;
+let descargaMapa=null;      // {cancelar:boolean}
+function tilesDe(bbox, z){
+  const n=2**z, X=lon=>Math.floor((lon+180)/360*n), Y=lat=>Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n);
+  const out=[]; for(let x=X(bbox[0]); x<=X(bbox[2]); x++) for(let y=Y(bbox[3]); y<=Y(bbox[1]); y++) out.push([z,x,y]); return out;
+}
+async function buscarCompilacion(){
+  const {PMTiles}=window.MapaOffline;
+  for(let d=0; d<=8; d++){
+    const f=new Date(Date.now()-d*86400000), s=f.getUTCFullYear()+String(f.getUTCMonth()+1).padStart(2,'0')+String(f.getUTCDate()).padStart(2,'0');
+    const url=`https://build.protomaps.com/${s}.pmtiles`;
+    try{ const pm=new PMTiles(url); const h=await pm.getHeader(); if(h && h.maxZoom) return {url, pm, h, fecha:s}; }catch(e){}
+  }
+  throw new Error('No se pudo conectar con el servidor de mapas (Protomaps). Revisa tu internet e intenta de nuevo.');
+}
+async function gzipU8(u8){ return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()); }
+function varint(a,n){ while(n>=128){ a.push((n%128)|128); n=Math.floor(n/128); } a.push(n); }
+function serializarDir(es){
+  const a=[]; varint(a,es.length); let ult=0;
+  es.forEach(e=>{ varint(a,e.tileId-ult); ult=e.tileId; });
+  es.forEach(e=>varint(a,e.runLength));
+  es.forEach(e=>varint(a,e.length));
+  es.forEach((e,i)=>{ if(i>0 && e.offset===es[i-1].offset+es[i-1].length) varint(a,0); else varint(a,e.offset+1); });
+  return new Uint8Array(a);
+}
+async function armarPMTiles(tiles, meta, bbox, minZ, maxZ, limiteRaiz=16384){
+  // tiles: [{tileId, data(Uint8Array gzip)}] ordenados por tileId
+  let off=0; const entradas=tiles.map(t=>{ const e={tileId:t.tileId, offset:off, length:t.data.length, runLength:1}; off+=t.data.length; return e; });
+  let raiz=await gzipU8(serializarDir(entradas)), hojas=new Uint8Array(0);
+  if(127+raiz.length>limiteRaiz){                       // directorio grande: se parte en hojas
+    const trozos=[], partes=[]; let hOff=0;
+    for(let i=0;i<entradas.length;i+=2048){ const z=await gzipU8(serializarDir(entradas.slice(i,i+2048))); partes.push(z);
+      trozos.push({tileId:entradas[i].tileId, offset:hOff, length:z.length, runLength:0}); hOff+=z.length; }
+    raiz=await gzipU8(serializarDir(trozos)); hojas=new Uint8Array(hOff); let p=0; partes.forEach(z=>{ hojas.set(z,p); p+=z.length; });
+  }
+  const metaZ=await gzipU8(new TextEncoder().encode(JSON.stringify(meta||{})));
+  const H=new ArrayBuffer(127), dv=new DataView(H), u8=new Uint8Array(H);
+  'PMTiles'.split('').forEach((c,i)=>u8[i]=c.charCodeAt(0)); u8[7]=3;
+  const rootOff=127, metaOff=rootOff+raiz.length, leafOff=metaOff+metaZ.length, dataOff=leafOff+hojas.length;
+  const big=(o,v)=>dv.setBigUint64(o,BigInt(v),true);
+  big(8,rootOff); big(16,raiz.length); big(24,metaOff); big(32,metaZ.length); big(40,leafOff); big(48,hojas.length);
+  big(56,dataOff); big(64,off); big(72,entradas.length); big(80,entradas.length); big(88,entradas.length);
+  u8[96]=1; u8[97]=2; u8[98]=2; u8[99]=1; u8[100]=minZ; u8[101]=maxZ;
+  dv.setInt32(102,Math.round(bbox[0]*1e7),true); dv.setInt32(106,Math.round(bbox[1]*1e7),true); dv.setInt32(110,Math.round(bbox[2]*1e7),true); dv.setInt32(114,Math.round(bbox[3]*1e7),true);
+  u8[118]=Math.min(14,maxZ); dv.setInt32(119,Math.round((bbox[0]+bbox[2])/2*1e7),true); dv.setInt32(123,Math.round((bbox[1]+bbox[3])/2*1e7),true);
+  return new Blob([H, raiz, metaZ, hojas, ...tiles.map(t=>t.data)], {type:'application/octet-stream'});
+}
+async function descargarMapaDirecto(zonaId, maxZ, prog){
+  await cargarLibsMapa();
+  const zona=ZONAS_MAPA[zonaId]; descargaMapa={cancelar:false};
+  prog('Buscando el mapa más reciente…');
+  const {pm, h, fecha}=await buscarCompilacion();
+  const meta=await pm.getMetadata().catch(()=>({}));
+  maxZ=Math.min(maxZ, h.maxZoom);
+  const lista=[]; for(let z=MAPA_MINZOOM; z<=maxZ; z++) lista.push(...tilesDe(zona.bbox,z));
+  const {zxyToTileId}=window.MapaOffline;
+  const res=[]; let hechos=0, bytes=0, i=0, fallos=0;
+  const trabajador=async()=>{
+    while(i<lista.length){
+      if(descargaMapa.cancelar) throw new Error('Descarga cancelada');
+      const [z,x,y]=lista[i++];
+      let r=null;
+      for(let intento=0; intento<3 && !r; intento++){ try{ r=await pm.getZxy(z,x,y) || {vacio:true}; }catch(e){ if(intento===2) fallos++; else await new Promise(s=>setTimeout(s,800)); } }
+      if(r && r.data){ const g=await gzipU8(new Uint8Array(r.data)); res.push({tileId:zxyToTileId(z,x,y), z, data:g}); bytes+=g.length; }
+      hechos++;
+      if(hechos%10===0 || hechos===lista.length) prog(`Descargando ${zona.titulo}: ${Math.round(hechos/lista.length*100)}% · ${fmtMB(bytes)}`, hechos/lista.length);
+    }
+  };
+  await Promise.all(Array.from({length:6},trabajador));
+  if(fallos > lista.length*0.02) throw new Error('Se perdieron demasiadas partes del mapa por la conexión. Intenta de nuevo con buena señal o Wi-Fi.');
+  if(!res.length) throw new Error('El servidor no envió partes del mapa para esta zona. Intenta más tarde.');
+  res.sort((a,b)=>a.tileId-b.tileId);
+  prog('Armando el archivo del mapa…', 1);
+  const blob=await armarPMTiles(res, meta, zona.bbox, Math.min(...res.map(t=>t.z)), Math.max(...res.map(t=>t.z)));
+  await guardarMapa(blob, `${zona.nombre}.pmtiles (${fecha})`);
+  descargaMapa=null;
+  return blob;
+}
+async function flujoDescargarMapa(){
+  if(descargaMapa){ toast('Ya hay una descarga en curso'); return; }
+  if(!('CompressionStream' in window)){ toast('Este navegador es muy antiguo para descargar el mapa. Actualiza iOS/Chrome.'); return; }
+  const z=await askChoice({paso:1,total:2,titulo:'¿Qué zona quieres?',ayuda:'Se descarga solo esa zona del mapa',opciones:[
+    {id:'cdmx',label:'Solo Ciudad de México',sub:'Recomendado'},
+    {id:'conurbada',label:'CDMX + zona conurbada',sub:'Neza, Ecatepec, Naucalpan, Tlalnepantla, Chalco… (más pesado)'}]}); if(!z) return;
+  const d=await askChoice({paso:2,total:2,titulo:'¿Cuánto detalle?',ayuda:'Usa Wi-Fi: la descarga es grande',opciones:[
+    {id:'15',label:'Detalle máximo',sub:'Calles chicas con nombre · aprox. 60–150 MB'},
+    {id:'14',label:'Más ligero',sub:'Avenidas y calles principales · aprox. 20–50 MB'}]}); if(!d) return;
+  show('historial');
+  const pr=()=>$('#moProg');
+  pantallaEncendida(true);
+  try{
+    await descargarMapaDirecto(z.id, +d.id, (t,f)=>{ const el=pr(); if(el) el.innerHTML=`${esc(t)}${f!=null?`<div class="bar" style="height:8px"><i style="width:${Math.round(f*100)}%"></i></div>`:''}<button class="btn sec2 small" id="moCancel">Cancelar descarga</button>`;
+      const c=$('#moCancel'); if(c) c.onclick=()=>{ if(descargaMapa) descargaMapa.cancelar=true; }; });
+    toast('Mapa guardado en este dispositivo ✔');
+  }catch(e){ descargaMapa=null; const el=pr(); if(el) el.innerHTML=`<span class="down">${esc(e.message||'No se pudo descargar')}</span>`; toast(e.message||'No se pudo descargar'); return; }
+  finally{ const j=jornadaActiva(); pantallaEncendida(!!(j&&j.viajeActivo)); }
+  render();
+}
+async function compartirMapa(){
+  const r=await leerMapaGuardado(); if(!r){ toast('No hay mapa guardado'); return; }
+  const blob=await r.blob(); const nombre=(MOinfo&&MOinfo.nombre||'cdmx.pmtiles').split(' ')[0];
+  const file=new File([blob], nombre, {type:'application/octet-stream'});
+  try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:'Mapa CDMX para la Bitácora'}); return; } }catch(e){ if(e && e.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre; document.body.appendChild(a); a.click(); a.remove();
 }
 
 /* =================== Vista: Jornada =================== */
@@ -2095,9 +2397,10 @@ function renderHistorial(){
       <button class="btn sec2 small" id="bJson">Copiar respaldo completo</button>
       <button class="btn sec2 small" id="bRest">Restaurar respaldo</button>
     </div>
+    ${mapaOfflineCardHTML()}
     ${monitorCardHTML()}
     <div class="muted" style="text-align:center;font-size:12px;margin:14px 0 4px">Bitácora Uber · versión ${APP_VERSION}</div>`;
-  conectarMonitorCard();
+  conectarMonitorCard(); conectarMapaOfflineCard();
   v.querySelectorAll('[data-j]').forEach(d=>d.onclick=()=>{ const j=jornadas[d.dataset.j];
     const viajes=[...j.viajes].sort((a,b)=>tripRate(b)-tripRate(a)); const mx=viajes.length?tripRate(viajes[0]):0;
     openModal(resumenCard(j,'Detalle')+(rutasDeJornada(j).length? `<div class="card"><h2>🗺️ Recorridos del día</h2>${mapaCDMX(null,puntosDelDia(j),rutasDeJornada(j),true)}${leyendaRutas(j)}</div>`:'')+`<div class="card"><h2>Viajes (mejor a peor $/km) · ✎ para editar</h2>${viajes.map((t,i)=>tripRow(t,i+1,true,mx)).join('')||'<div class="empty">Sin viajes</div>'}</div>
@@ -2442,6 +2745,7 @@ function render(){
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden && vista==='jornada') render(); });
 
 loadLocal(); render(); setSync('local'); initCloud();
+iniciarMapaOffline().then(m=>{ if(m) render(); });
 </script>
 <script>
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
