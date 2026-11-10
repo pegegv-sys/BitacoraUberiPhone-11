@@ -2165,7 +2165,7 @@ function segundosDetenido(){
 /* ---- Letrero de calle (estilo nomenclatura CDMX, con emblemas genéricos) ---- */
 function letreroHTML(){
   const d=dirActual, alc=(d&&d.alcaldia)|| (ultimaPos? alcaldiaDe(ultimaPos):'') || '';
-  const nombre = d&&d.calle? d.calle : ultimaPos? 'Calle sin nombre' : 'Buscando calle…';
+  const nombre = d&&d.calle? d.calle.replace(/^\s*calle\s+/i,'') : ultimaPos? 'Sin nombre' : 'Buscando…';   // sin la palabra «Calle»: el nombre se ve más grande
   const sub=[d&&d.colonia? 'COL. '+d.colonia : '', alc? 'ALC. '+alc : '', d&&d.cp? 'C.P. '+d.cp : ''].filter(Boolean).join('\u00a0\u00a0\u00a0');
   const tam=Math.max(15, Math.min(34, Math.round(560/Math.max(8,nombre.length))));
   return `<div class="letrero" role="img" aria-label="Calle ${esc(nombre)}">
