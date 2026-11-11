@@ -832,6 +832,51 @@ input.numf{cursor:pointer;caret-color:transparent}
 @keyframes motoPasa{0%{left:-60px}32%{left:105%}100%{left:105%}}
 .escena .faro-moto{fill:#fff3b0} .escena.noche .moto{filter:drop-shadow(8px 0 6px rgba(255,240,170,.55))}
 @media (prefers-reduced-motion:reduce){.escena .moto,.escena .metro{animation-duration:30s}}
+
+.escena.sinviaje .ruta,.escena.sinviaje .etq{display:none}
+#pantallaEsc{position:fixed;inset:0;z-index:46;background:#0d0d0c;display:none;flex-direction:column;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#pantallaEsc.open{display:flex}
+#pantallaEsc .pc-top{display:flex;align-items:center;gap:12px;padding:8px 12px}
+#pantallaEsc #pcSalir{background:var(--surface-2);color:var(--text-primary);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font-size:16px;font-weight:700}
+#pantallaEsc .pc-hint{color:var(--text-muted);font-size:13px}
+@media (orientation:landscape){#pantallaEsc .pc-hint{display:none}}
+#pcSlot{position:relative;flex:1;overflow:hidden;margin:0 8px 8px}
+.esc-box.grande{position:absolute;left:0;top:0;transform-origin:0 0}
+body.sin-scroll{overflow:hidden}
+#np{z-index:50} #toast{z-index:55}
+
+/* ---- Cebra y peatones (luz roja) ---- */
+.escena .cebra{position:absolute;bottom:0;left:60%;width:26px;height:46px;display:none}
+.escena.rojo .cebra{display:block}
+.escena .cebra .rayas{position:absolute;left:0;right:0;bottom:0;height:40px;z-index:1;transform:skewX(-22deg);transform-origin:bottom;background:repeating-linear-gradient(0deg,rgba(245,245,240,.92) 0 4px,transparent 4px 8px)}
+.escena.noche .cebra .rayas{opacity:.7}
+.escena .peaton{position:absolute;bottom:-8px;left:8px;width:11px;height:24px;transform-origin:50% 100%;z-index:5;transition:opacity .3s}
+.escena .peaton svg{display:block;width:11px;height:24px;overflow:visible}
+.escena .peaton .pi,.escena .peaton .pd{transform-box:fill-box;transform-origin:50% 0}
+.escena .peaton.camina .pi{animation:pierna .5s ease-in-out infinite alternate}
+.escena .peaton.camina .pd{animation:pierna .5s ease-in-out infinite alternate-reverse}
+.escena .peaton.huye .pi{animation:pierna .2s ease-in-out infinite alternate}
+.escena .peaton.huye .pd{animation:pierna .2s ease-in-out infinite alternate-reverse}
+.escena .peaton .susto{display:none}
+.escena .peaton.huye .susto{display:block}
+@keyframes pierna{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+.escena.noche .peaton svg{filter:brightness(.8)}
+
+/* ---- Tráfico alrededor del coche ---- */
+.escena .flujo{position:absolute;left:8%;bottom:0;width:0;height:0;transition:left 1s linear}
+.escena .veh{position:absolute;transition:opacity .6s,transform .6s}
+.escena .veh svg{display:block;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+.escena .veh.vc{bottom:13px;z-index:3}
+.escena .veh.vl{bottom:25px;z-index:1}
+.escena .veh.vl svg{transform:scale(.82);transform-origin:50% 100%;filter:brightness(.92) drop-shadow(0 2px 2px rgba(0,0,0,.35))}
+.escena .veh .vv{animation:vaiven var(--d,3s) ease-in-out infinite alternate}
+@keyframes vaiven{from{transform:translateX(-3px)}to{transform:translateX(3px)}}
+.escena.parado .veh .vv{animation-play-state:paused}
+.escena.rojo .veh.ade{opacity:0;transform:translateX(40px)}
+.escena .veh .fv{fill:#fff6c2}
+.escena.noche .veh .fv{fill:#fff3a0;filter:drop-shadow(0 0 3px #ffe680)}
+.escena.noche .veh svg{filter:brightness(.72) drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+@media (prefers-reduced-motion:reduce){.escena .veh .vv{animation:none}}
 /* ---- Escena del viaje ---- */
 .escena{position:relative;height:172px;border-radius:12px;overflow:hidden;margin-top:4px;user-select:none}
 .escena.dia{background:linear-gradient(#6fbdf3,#cfeaff 72%)}
@@ -870,6 +915,7 @@ input.numf{cursor:pointer;caret-color:transparent}
 .escena .pt{position:absolute;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;font:800 10px/16px Arial,sans-serif;text-align:center;color:#fff;border:2px solid #121211}
 .escena .pt.a{left:-8px;background:#3987e5}.escena .pt.b{right:-8px;background:#55554f}.escena .pt.b.ok{background:#2fbf71}
 .escena .coche{position:absolute;bottom:13px;left:8%;width:52px;transition:left 1s linear;z-index:3}
+.escena.sinviaje .coche,.escena.sinviaje .flujo{transition:left 1.6s ease-in-out}
 .escena .coche img{width:52px;height:auto;display:block;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45))}
 .escena .faros{position:absolute;left:46px;bottom:5px;width:78px;height:24px;display:none;background:linear-gradient(90deg,rgba(255,244,180,.85),rgba(255,244,180,0));clip-path:polygon(0 38%,100% 0,100% 100%,0 62%)}
 .escena.noche .faros{display:block}
@@ -1312,14 +1358,15 @@ async function accionAvance(j,a){
 let tickN=0;
 function actualizarEnVivo(){
   const j=jornadaActiva(); tickN++;
-  if(j){ actualizarDireccion(); if(tickN%5===0) evaluarTrafico();
+  actualizarDireccion();
+  if(j){ if(tickN%5===0) evaluarTrafico();
     const tl=$('#trafLive'); if(tl) tl.innerHTML = j.viajeActivo&&j.viajeActivo.traficoActual? tramoHTML(j.viajeActivo.traficoActual,true) : '';
     const vl=$('#velLive'); if(vl) vl.textContent = velActual!=null? `🚀 ${fmtNum(velActual,0)} km/h (último minuto)` : ''; }
   const lt=$('#liveTime'); if(lt&&j) lt.textContent=fmtDur(Date.now()-j.inicio);
   if(j && j.viajeActivo){
     const tt=$('#tripTime'); if(tt) tt.textContent=fmtCrono(Date.now()-j.viajeActivo.inicio);
-    actualizarEscena(j);
   }
+  if(ESCN && document.body.contains(ESCN)) actualizarEscena(j);
   const cl=$('#cargaLive'); const ca=cargaActiva(); if(cl && ca) cl.innerHTML=cargaLiveHTML(ca);
   const mv=$('#mapaSlotV'); if(mv && MV && ultimaPos && mv.dataset.ts!=String(ultimaPos.ts)){ mv.dataset.ts=ultimaPos.ts; dibujarMV(jornadaActiva(), false);
     const mt=$('#mapaTxt'); if(mt) mt.innerHTML=`Estás en <b>${zona(ultimaPos)}</b> · <span class="muted">${fmtCoord(ultimaPos)} (±${ultimaPos.acc} m) · ${fmtHora(ultimaPos.ts)}</span>`; }
@@ -1760,6 +1807,22 @@ function velocidadVentana(){
   return km/h;
 }
 let velActual=null;
+function velocidadCorta(){            // km/h de los últimos ~12 s (responde rápido)
+  const now=Date.now(); if(!crudo.length || now-crudo[crudo.length-1].ts>15000) return gpsState==='on'? 0 : null;
+  const w=crudo.filter(p=>p.ts>=now-12000); if(w.length<2) return 0;
+  let km=0; for(let k=1;k<w.length;k++) km+=haversine(w[k-1],w[k]);
+  const h=(w[w.length-1].ts-w[0].ts)/3600000; return h*3600<3? 0 : km/h;
+}
+let posLibre=25;
+function posicionPorVelocidad(v){
+  // menos de 40 km/h: 1/4 · 40 a 60: centro · más de 60: 3/4 (con 3 km/h de margen para que no brinque)
+  if(v==null) return posLibre;
+  const m=3;
+  if(posLibre===25){ if(v>60+m) posLibre=75; else if(v>=40+m) posLibre=50; }
+  else if(posLibre===50){ if(v<40-m) posLibre=25; else if(v>60+m) posLibre=75; }
+  else { if(v<40-m) posLibre=25; else if(v<=60-m) posLibre=50; }
+  return posLibre;
+}
 function evaluarTrafico(){
   const j=jornadaActiva(), va=j&&j.viajeActivo; if(!va){ lentoDesde=rapidoDesde=null; return; }
   const v=velocidadVentana(); velActual=v; const now=Date.now();
@@ -2266,7 +2329,7 @@ const SEMAFORO=`<svg viewBox="0 0 16 46" aria-hidden="true"><rect x="7" y="20" w
   <circle cx="8" cy="6" r="3.6" fill="#ff2a2a"/><circle cx="8" cy="6" r="6" fill="#ff2a2a" opacity=".35"/><circle cx="8" cy="14" r="3.4" fill="#3a3220"/><circle cx="8" cy="22" r="3.4" fill="#1f3322"/></svg>`;
 const logoAuto = () => { const i=document.querySelector('.logo-auto'); return i? i.src : ''; };
 
-function escenaHTML(j){
+function escenaHTML(){
   const T=tiras();
   return `<div class="escena" id="escenaV" style="--ed-d:${T.edD};--ed-n:${T.edN};--ca-d:${T.caD};--ca-n:${T.caN};--cb-d:${T.cbD};--cb-n:${T.cbN};--vi-d:${T.viD};--vi-n:${T.viN}">
     <div class="cielo"><div class="astro"></div><div class="estrellas"></div><div class="nube n1"></div><div class="nube n2"></div></div>
@@ -2276,36 +2339,266 @@ function escenaHTML(j){
     <div class="metro" aria-hidden="true">${metroSVG()}</div>
     <div class="banqueta"></div>
     <div class="calle"><div class="raya"></div></div>
+    <div class="cebra" id="escCebra" aria-hidden="true"><div class="rayas"></div>${PEATONES.map((c,i)=>`<div class="peaton" data-i="${i}">${peatonSVG(c)}</div>`).join('')}</div>
+    <div class="flujo" id="escTraf" aria-hidden="true"></div>
     <div class="moto m1">${motoSVG('#c62828')}</div><div class="moto m2">${motoSVG('#1565c0')}</div>
     <div class="ruta"><div class="riel"></div><div class="prog" id="escProg"></div>
       <span class="pt a">A</span><span class="pt b" id="escB">B</span></div>
     <div class="coche" id="escCoche"><div class="faros"></div><img alt="Tu coche" src="${logoAuto()}"><div class="semaforo">${SEMAFORO}</div></div>
-    <div class="etq izq">Inicio · km ${fmtNum(j.viajeActivo.kmIni)}</div><div class="etq der" id="escDest"></div>
+    <div class="etq izq" id="escIni"></div><div class="etq der" id="escDest"></div>
   </div>
   <div id="avInfo" style="font-size:14px;margin-top:6px"></div>
   <div class="av-acts" id="avActs"></div>`;
 }
 function actualizarEscena(j){
-  const va=j&&j.viajeActivo, e=$('#escenaV'); if(!va || !e) return;
-  const p=progresoViaje(j), px=p.pct==null? 0 : Math.min(1,p.pct), llego=p.pct!=null && px>=1;
+  const e=$('#escenaV'); if(!e) return;
+  const va=j&&j.viajeActivo;
   const det=segundosDetenido(), noche=esDeNoche();
   e.classList.toggle('noche',noche); e.classList.toggle('dia',!noche);
   const tl=enCalzadaTlalpan();
   e.classList.toggle('tlalpan', tl); e.classList.toggle('casa', !tl && enSalvadorAllende());
+  e.classList.toggle('sinviaje', !va);
+  let info, acts='', llego=false;
+  if(va){
+    const p=progresoViaje(j), px=p.pct==null? 0 : Math.min(1,p.pct); llego=p.pct!=null && px>=1;
+    const c=$('#escCoche'); if(c) c.style.left=`calc(8% + ${(px*84).toFixed(2)}% - 26px)`;
+    const tr=$('#escTraf'); if(tr && c) tr.style.left=c.style.left;
+    const pr=$('#escProg'); if(pr){ pr.style.width=(px*100).toFixed(2)+'%'; pr.classList.toggle('ok',llego); }
+    const b=$('#escB'); if(b) b.classList.toggle('ok',llego);
+    const di=$('#escIni'); if(di) di.textContent='Inicio · km '+fmtNum(va.kmIni);
+    const dd=$('#escDest'); if(dd) dd.textContent= p.dist? 'Destino · '+fmtKm(p.dist) : 'Destino';
+    if(p.pct==null) info='Agrega la distancia o el tiempo que indica Uber para ver el avance.';
+    else if(p.fuente==='tiempo') info=`<b>${Math.round(px*100)}%</b> · ${fmtNum(p.trans/60000,0)} de ${p.min} min${p.dist?' · ~'+fmtKm(p.dist*px)+' de '+fmtKm(p.dist):''} <span class="muted">(estimado por tiempo)</span>`;
+    else info=`<b>${Math.round(px*100)}%</b> · ${fmtKm(p.rec)} de ${fmtKm(p.dist)} · faltan ${fmtKm(Math.max(0,p.dist-p.rec))} <span class="muted">(por ${p.fuente})</span>`;
+    if(llego) info='🏁 ¡Llegaste al destino estimado! '+info;
+    acts=`${p.dist && gpsState!=='on'?'<button data-av="odo">📍 Actualizar odómetro</button>':''}<button data-av="dest">🎯 ${p.dist||va.minEst?'Cambiar distancia / tiempo':'Agregar distancia / tiempo'}</button>`;
+  } else {
+    const vc=gpsState==='on'? velocidadCorta() : null, pl=posicionPorVelocidad(vc);
+    const c=$('#escCoche'); if(c) c.style.left=`calc(${pl}% - 26px)`;
+    const tr=$('#escTraf'); if(tr) tr.style.left=`calc(${pl}% - 26px)`;
+    info = j? '🚗 Sin viaje en curso' : '🚗 Sin jornada iniciada';
+    if(vc!=null) info+=` · ${fmtNum(vc,0)} km/h`;
+    else if(gpsState!=='on') info+=' · <span class="muted">sin GPS: el paisaje se mueve de muestra</span>';
+  }
   e.classList.toggle('parado', det>=3 || llego); e.classList.toggle('rojo', det>=10 && !llego);
-  const c=$('#escCoche'); if(c) c.style.left=`calc(8% + ${(px*84).toFixed(2)}% - 26px)`;
-  const pr=$('#escProg'); if(pr){ pr.style.width=(px*100).toFixed(2)+'%'; pr.classList.toggle('ok',llego); }
-  const b=$('#escB'); if(b) b.classList.toggle('ok',llego);
-  const dd=$('#escDest'); if(dd) dd.textContent= p.dist? 'Destino · '+fmtKm(p.dist) : 'Destino';
-  let info;
-  if(p.pct==null) info='Agrega la distancia o el tiempo que indica Uber para ver el avance.';
-  else if(p.fuente==='tiempo') info=`<b>${Math.round(px*100)}%</b> · ${fmtNum(p.trans/60000,0)} de ${p.min} min${p.dist?' · ~'+fmtKm(p.dist*px)+' de '+fmtKm(p.dist):''} <span class="muted">(estimado por tiempo)</span>`;
-  else info=`<b>${Math.round(px*100)}%</b> · ${fmtKm(p.rec)} de ${fmtKm(p.dist)} · faltan ${fmtKm(Math.max(0,p.dist-p.rec))} <span class="muted">(por ${p.fuente})</span>`;
+  const nivel=nivelTrafico(det); e.classList.toggle('pesado', nivel==='pesado'); armarTrafico(e, nivel, zonaTrafico());
+  if(det>=10 && !llego) iniciarPeatones();
   if(det>=10 && !llego) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
-  const ai=$('#avInfo'); if(ai){ const h=(llego?'🏁 ¡Llegaste al destino estimado! ':'')+info; if(ai.dataset.h!==h){ ai.dataset.h=h; ai.innerHTML=h; } }
-  const ac=$('#avActs'); if(ac){ const h=`${p.dist && gpsState!=='on'?'<button data-av="odo">📍 Actualizar odómetro</button>':''}<button data-av="dest">🎯 ${p.dist||va.minEst?'Cambiar distancia / tiempo':'Agregar distancia / tiempo'}</button>`; if(ac.dataset.h!==h){ ac.dataset.h=h; ac.innerHTML=h; } }
+  const ai=$('#avInfo'); if(ai && ai.dataset.h!==info){ ai.dataset.h=info; ai.innerHTML=info; }
+  const ac=$('#avActs'); if(ac && ac.dataset.h!==acts){ ac.dataset.h=acts; ac.innerHTML=acts; }
   pintarLetrero();
 }
+
+
+/* =================== Tráfico: vehículos alrededor del coche (diseños genéricos, sin marcas) =================== */
+const rueda=(cx,cy,r,rin='#9a9a9a')=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#1b1b1b"/><circle cx="${cx}" cy="${cy}" r="${(r*.45).toFixed(1)}" fill="${rin}"/>`;
+const VEH={
+  micro:()=>({w:84,h:40,svg:`<rect x="2" y="5" width="79" height="27" rx="5" fill="#ecebe4"/><rect x="5" y="2.5" width="70" height="4" rx="2" fill="#d4d3cb"/>
+    <rect x="2" y="23" width="79" height="8" fill="#2f9a52"/><rect x="2" y="30" width="79" height="2" fill="#1d6b37"/>
+    ${[6,18,30,42].map(x=>`<rect x="${x}" y="9" width="10" height="10" rx="1" fill="#2b3a4a"/>`).join('')}
+    <rect x="55" y="9" width="9" height="21" fill="#33475c"/><path d="M67 9 L77 9 Q81 10 81 14 L81 20 L67 20Z" fill="#2b3a4a"/>
+    <rect x="66" y="4.5" width="12" height="3" fill="#ffd23f"/><rect class="fv" x="78" y="23" width="3" height="3" rx="1"/><rect x="2" y="22" width="2" height="5" fill="#d42"/>
+    ${rueda(16,33,6.5)}${rueda(66,33,6.5)}`}),
+  trole:()=>({w:132,h:74,svg:`<line x1="44" y1="30" x2="80" y2="1" stroke="#2a2a2a" stroke-width="1.6"/><line x1="51" y1="30" x2="87" y2="1" stroke="#2a2a2a" stroke-width="1.6"/>
+    <rect x="36" y="25" width="34" height="6" rx="2" fill="#1a5cb8"/><rect x="2" y="30" width="128" height="34" rx="6" fill="#1f73e0"/><rect x="2" y="30" width="128" height="4" rx="2" fill="#1559b8"/>
+    <rect x="7" y="36" width="104" height="15" rx="2" fill="#17324f"/>${[27,49,71,93].map(x=>`<rect x="${x}" y="36" width="2" height="15" fill="#1f73e0"/>`).join('')}
+    <rect x="31" y="36" width="11" height="26" fill="#22405f"/><rect x="86" y="36" width="11" height="26" fill="#22405f"/>
+    <path d="M114 34 L126 36 Q129 37 129 41 L129 54 L114 54Z" fill="#17324f"/><rect x="114" y="31" width="14" height="3" fill="#ffb000"/>
+    <rect x="2" y="58" width="128" height="3" fill="#fff"/><line x1="2" y1="59.5" x2="130" y2="59.5" stroke="#d32" stroke-width="3" stroke-dasharray="5 5"/>
+    <rect class="fv" x="126" y="54" width="4" height="3"/><rect x="2" y="52" width="2" height="5" fill="#d42"/>${rueda(24,67,7)}${rueda(106,67,7)}`}),
+  vidrios:()=>({w:80,h:52,svg:`<path d="M10 34 L26 7 L42 34" fill="none" stroke="#e9e9e6" stroke-width="3"/>${[14,20,26].map(y=>`<line x1="${10+(34-y)*.6}" y1="${y}" x2="${42-(34-y)*.6}" y2="${y}" stroke="#d8d8d4" stroke-width="2"/>`).join('')}
+    <path d="M17 34 L27 9 L36 9 L36 34Z" fill="#1f8f5a" opacity=".9"/><path d="M21 34 L30 11 L39 11 L39 34Z" fill="#27a86a" opacity=".75"/>
+    <line x1="20" y1="13" x2="40" y2="31" stroke="#f2c200" stroke-width="1.4"/><line x1="40" y1="14" x2="19" y2="31" stroke="#f2c200" stroke-width="1.4"/><circle cx="30" cy="22" r="2" fill="#f2c200"/>
+    <rect x="2" y="34" width="52" height="6" fill="#f3f3f3"/><rect x="2" y="37" width="52" height="2" fill="#f08a24"/>
+    <path d="M52 40 L52 20 Q53 18 56 18 L66 18 L74 27 L79 29 L79 40Z" fill="#f5f5f5"/><path d="M57 21 L65 21 L71 28 L57 28Z" fill="#2b3a4a"/>
+    <rect x="2" y="40" width="77" height="3" fill="#333"/><rect class="fv" x="76" y="30" width="3" height="3"/><rect x="2" y="35" width="2" height="4" fill="#d42"/>${rueda(16,45,6.5)}${rueda(66,45,6.5)}`}),
+  tianguis:()=>({w:76,h:48,svg:`<path d="M0 18 Q3 5 11 7 Q15 -1 24 3 Q31 -2 38 5 Q46 6 44 18Z" fill="#3a3640"/><path d="M6 12 l5 -4 M18 6 l4 -3 M30 6 l5 -4 M38 11 l4 -4" stroke="#55505e" stroke-width="1.5"/>
+    <rect x="2" y="16" width="40" height="16" fill="#7a4b2a"/>${[8,14,20,26].map(x=>`<line x1="${x}" y1="16" x2="${x}" y2="32" stroke="#5a3519" stroke-width="1.5"/>`).join('')}
+    <rect x="2" y="15" width="40" height="2" fill="#c0392b"/><rect x="2" y="30" width="40" height="2" fill="#c0392b"/>
+    <rect x="30" y="18" width="10" height="11" fill="#f5f5f0"/><text x="35" y="27.3" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#111">8</text>
+    <rect x="2" y="32" width="42" height="8" fill="#5f5f5c"/><path d="M44 40 L44 22 Q45 19 49 19 L58 19 L66 28 L74 30 Q75 31 75 33 L75 40Z" fill="#6f6f6c"/>
+    <path d="M49 22 L57 22 L63 28 L49 28Z" fill="#2b3a4a"/><rect x="2" y="40" width="73" height="2" fill="#333"/><rect class="fv" x="72" y="31" width="3" height="3"/>${rueda(13,42,6)}${rueda(64,42,6)}`}),
+  sedan:(c='#b7322c',f=null)=>({w:58,h:26,svg:`<path d="M2 20 Q2 14 8 13 L16 12 L23 5 Q25 4 28 4 L40 4 Q43 4 45 6 L51 12 Q57 13 57 17 L57 21 Q57 22 55 22 L4 22 Q2 22 2 20Z" fill="${c}"/>
+    ${f?`<path d="M2 17 L57 17 L57 21 Q57 22 55 22 L4 22 Q2 22 2 20Z" fill="${f}"/>`:''}
+    <path d="M18 12 L24 6 L33 6 L33 12Z" fill="#2b3a4a"/><path d="M35 6 L41 6 Q43 6 44 8 L48 12 L35 12Z" fill="#2b3a4a"/>
+    <rect class="fv" x="54" y="14" width="3" height="2"/><rect x="2" y="14" width="2" height="3" fill="#d42"/>${rueda(14,21,5)}${rueda(46,21,5)}`}),
+  taxi:()=>{ const n=(VEH._n=(VEH._n||0)+1), B='M2 22 Q2 16 8 15 L16 14 L23 7 Q25 6 28 6 L40 6 Q43 6 45 8 L51 14 Q57 15 57 19 L57 23 Q57 24 55 24 L4 24 Q2 24 2 22Z';
+    // la carrocería se voltea para que el cofre (la parte larga) quede hacia adelante; los letreros y luces no se voltean
+    return {w:58,h:28,svg:`<defs><clipPath id="txc${n}"><rect x="0" y="0" width="60" height="16.5"/></clipPath></defs>
+    <rect x="19.5" y="1.6" width="9" height="4" rx="1" fill="#fff" stroke="#bdbdbd" stroke-width=".5"/><text x="24" y="4.7" text-anchor="middle" font-family="Arial,sans-serif" font-size="3" font-weight="900" fill="#111">TAXI</text>
+    <g transform="translate(59 0) scale(-1 1)">
+      <path d="${B}" fill="#f7f7f5"/><path d="${B}" fill="#e8338f" clip-path="url(#txc${n})"/>
+      <path d="M18 14 L24 8 L33 8 L33 14Z" fill="#2b3a4a"/><path d="M35 8 L41 8 Q43 8 44 10 L48 14 L35 14Z" fill="#2b3a4a"/>
+      <rect x="33" y="8" width="2" height="8" fill="#e8338f"/>
+      ${rueda(14,23,5,'#c9ced6')}${rueda(46,23,5,'#c9ced6')}
+    </g>
+    <path d="M41 15 l3 -1.6 l.8 2z" fill="#e8338f"/>
+    <text x="27" y="21.6" text-anchor="middle" font-family="Arial,sans-serif" font-size="4.6" font-weight="900" fill="#111">TAXI</text>
+    <rect class="fv" x="54" y="17" width="3" height="2"/><rect x="2" y="17" width="2" height="3" fill="#d42"/>`}; },
+  ejecutivo:(c='#15161a')=>({w:64,h:24,svg:`<path d="M2 18 Q2 13 8 12 L18 11 L26 4 Q28 3 31 3 L44 3 Q47 3 49 5 L56 11 Q62 12 62 16 L62 19 Q62 20 60 20 L4 20 Q2 20 2 18Z" fill="${c}"/>
+    <rect x="6" y="14" width="52" height="1" fill="#c9ced6"/><path d="M21 11 L27 5 L37 5 L37 11Z" fill="#3b4a5c"/><path d="M39 5 L45 5 Q47 5 48 7 L52 11 L39 11Z" fill="#3b4a5c"/>
+    <rect class="fv" x="58" y="13" width="4" height="1.6"/><rect x="2" y="12" width="3" height="1.6" fill="#ff2a2a"/>${rueda(15,19,5,'#cfd4da')}${rueda(50,19,5,'#cfd4da')}`}),
+  suv:(c='#3a3d42')=>({w:62,h:34,svg:`<path d="M2 26 L2 14 Q2 11 6 11 L14 10 L20 3 Q21 2 24 2 L46 2 Q49 2 51 5 L55 11 Q60 12 60 16 L60 27 Q60 28 58 28 L4 28 Q2 28 2 26Z" fill="${c}"/>
+    <rect x="20" y="0.5" width="26" height="1.5" fill="#8a8f96"/><path d="M17 10 L22 5 L34 5 L34 11Z" fill="#2f3b48"/><path d="M36 5 L48 5 Q50 5 51 7 L53 11 L36 11Z" fill="#2f3b48"/>
+    <rect x="4" y="19" width="54" height="1" fill="#c9ced6"/><rect class="fv" x="56" y="15" width="4" height="2"/><rect x="2" y="14" width="2" height="4" fill="#ff2a2a"/>${rueda(14,28,6,'#cfd4da')}${rueda(48,28,6,'#cfd4da')}`}),
+  deportivo:(c='#c21818')=>({w:60,h:20,svg:`<path d="M2 15 Q2 11 6 10 L18 9 Q26 3 34 3 Q42 3 48 8 Q58 9 59 12 L59 15 Q59 16 57 16 L4 16 Q2 16 2 15Z" fill="${c}"/>
+    <path d="M22 9 Q28 5 34 5 Q40 5 44 9Z" fill="#2b3a4a"/><rect x="2" y="7.5" width="7" height="1.6" fill="#111"/>
+    <rect class="fv" x="55" y="10" width="4" height="1.6"/><rect x="2" y="10" width="3" height="1.5" fill="#ff2a2a"/>${rueda(14,15,5,'#d9dde2')}${rueda(47,15,5,'#d9dde2')}`})
+};
+const FLOTA={
+  popular:[()=>VEH.micro(),()=>VEH.trole(),()=>VEH.vidrios(),()=>VEH.tianguis(),()=>VEH.micro(),()=>VEH.sedan('#2d6cb5'),()=>VEH.sedan('#8c2a24')],
+  lujo:[()=>VEH.ejecutivo(),()=>VEH.suv('#3a3d42'),()=>VEH.deportivo('#c21818'),()=>VEH.suv('#f2f2ef'),()=>VEH.ejecutivo('#26364a'),()=>VEH.deportivo('#e8e8e8'),()=>VEH.suv('#121316')]
+};
+FLOTA.mixto=[...FLOTA.popular.slice(0,4),...FLOTA.lujo.slice(0,4)];
+function zonaTrafico(){
+  const a=sinAcentos((dirActual&&dirActual.alcaldia)||(ultimaPos?alcaldiaDe(ultimaPos):''));
+  if(/tlahuac|iztapalapa|iztacalco|venustiano/.test(a)) return 'popular';
+  if(/miguel hidalgo|benito juarez|coyoacan/.test(a)) return 'lujo';
+  return 'mixto';
+}
+let tNivel='ligero', tCambio=0, tClave='';
+function nivelTrafico(det){
+  if(window.__trafico) return tNivel=window.__trafico;            // solo para pruebas
+  const j=jornadaActiva(), va=j&&j.viajeActivo;
+  if(gpsState!=='on' || det>=120) { tCambio=0; return tNivel='ligero'; }   // sin GPS o estacionado
+  let pes;
+  if(va && va.traficoActual) pes=true;
+  else { const v=velocidadVentana(); if(v==null) return tNivel; pes=v<TRAF.vel; }
+  const want=pes?'pesado':'ligero';
+  if(want===tNivel) tCambio=0;
+  else { if(!tCambio) tCambio=Date.now(); if(Date.now()-tCambio>=20000 || (va&&va.traficoActual)){ tNivel=want; tCambio=0; } }
+  return tNivel;
+}
+function armarTrafico(e, nivel, zona){
+  const t=e.querySelector('#escTraf'); if(!t) return;
+  const clave=nivel+'|'+zona; if(clave===tClave && t.childElementCount) return; tClave=clave;
+  const pool=FLOTA[zona], usados=new Set();
+  const toma=()=>{ let i, n=0; do{ i=Math.floor(Math.random()*pool.length); n++; }while(usados.has(i) && n<20); usados.add(i); return pool[i](); };
+  const filas = nivel==='pesado'
+    ? [{cls:'vc', atras:2, ade:3, gap:7, off:0}, {cls:'vl', atras:2, ade:3, gap:10, off:-22}]
+    : [{cls:'vc', atras:1, ade:0, gap:14, off:0}];
+  let html='';
+  for(const f of filas){
+    usados.clear();
+    let x=f.off;
+    for(let i=0;i<f.atras;i++){ const v= (f.cls==='vc' && i===0)? VEH.taxi() : toma(); const k=f.cls==='vl'?.82:1; x-= f.gap + v.w*k; html+=pieza(v,f.cls,x,false); }
+    x=52+f.off;
+    for(let i=0;i<f.ade;i++){ const v=toma(); const k=f.cls==='vl'?.82:1; x+= f.gap; html+=pieza(v,f.cls+' ade',x,true); x+= v.w*k; }
+  }
+  t.innerHTML=html;
+}
+function pieza(v,cls,x,ade){
+  const d=(2.4+Math.random()*1.8).toFixed(2);
+  return `<div class="veh ${cls}" style="left:${x.toFixed(1)}px"><div class="vv" style="--d:${d}s"><svg viewBox="0 0 ${v.w} ${v.h}" width="${v.w}" height="${v.h}" aria-hidden="true">${v.svg}</svg></div></div>`;
+}
+/* =================== Peatones en la cebra (luz roja) =================== */
+const PEATONES=['#e5533d','#2f9e6e','#7b5cd6','#e0a526'];
+function peatonSVG(c){
+  return `<svg viewBox="0 0 11 24" aria-hidden="true">
+    <text class="susto" x="5.5" y="-2" text-anchor="middle" font-size="9" font-weight="900" fill="#ffd400" stroke="#000" stroke-width=".6">!</text>
+    <line class="pi" x1="4.3" y1="15" x2="4.3" y2="23.5" stroke="#2c3e57" stroke-width="2.4" stroke-linecap="round"/>
+    <line class="pd" x1="6.7" y1="15" x2="6.7" y2="23.5" stroke="#22324a" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="2.3" y="7" width="6.4" height="9" rx="2.2" fill="${c}"/>
+    <circle cx="5.5" cy="4" r="3.2" fill="#c98e62"/><path d="M2.3 3.6 Q5.5 -0.6 8.7 3.6 Q5.5 2 2.3 3.6Z" fill="#2b1d14"/>
+  </svg>`;
+}
+const Y_ARR=42, Y_ABA=-8;           // banqueta de enfrente / orilla de abajo
+let peaRAF=0, peaT=0, peaEst=null;
+function iniciarPeatones(){
+  if(peaRAF) return;
+  const e=$('#escenaV'); if(!e) return;
+  const now=performance.now();
+  peaEst=[...e.querySelectorAll('.peaton')].map((el,i)=>({el, y: i%2? Y_ABA : Y_ARR, dir:0, modo:'espera', t: now+300+i*1300+Math.random()*600, x: [3,15,9,20][i%4]}));
+  peaT=now; peaRAF=requestAnimationFrame(pasoPeatones);
+}
+function carrilesMoto(e, cx){
+  // Devuelve las bandas (altura sobre el piso) de las motos que se acercan o pasan por la cebra
+  const out=[];
+  e.querySelectorAll('.moto').forEach(m=>{
+    const l=parseFloat(getComputedStyle(m).left)||0, frente=l+44;
+    if(frente > cx-120 && l < cx+30) out.push(m.classList.contains('m2')? [-3,15] : [12,32]);
+  });
+  return out;
+}
+function pasoPeatones(ts){
+  const e=$('#escenaV');
+  if(!e || !e.classList.contains('rojo') || !peaEst){ peaRAF=0; peaEst=null; return; }
+  const dt=Math.min(.1,(ts-peaT)/1000); peaT=ts;
+  const coche=$('#escCoche'), W=e.clientWidth;
+  let cx = coche? coche.offsetLeft+86 : W*.6; cx=Math.max(20, Math.min(W-30, cx));
+  const cb=$('#escCebra'); if(cb) cb.style.left=cx+'px';
+  const bandas=carrilesMoto(e, cx);
+  const choca=(a,b)=>bandas.some(([lo,hi])=>b>=lo && a<=hi);
+  for(const p of peaEst){
+    if(p.modo==='espera'){
+      if(ts>=p.t){
+        const dir = p.y>(Y_ARR+Y_ABA)/2 ? -1 : 1, sig=p.y+dir*6;
+        if(!choca(Math.min(p.y,sig),Math.max(p.y,sig))) { p.modo='cruza'; p.dir=dir; }
+      }
+    } else if(p.modo==='cruza'){
+      const ny=p.y+p.dir*10*dt, ade=ny+p.dir*7;
+      if(choca(Math.min(p.y,ade),Math.max(p.y,ade))){ p.modo='huye'; p.dir=-p.dir; }
+      else { p.y=ny; if((p.dir>0 && p.y>=Y_ARR)||(p.dir<0 && p.y<=Y_ABA)){ p.y=p.dir>0?Y_ARR:Y_ABA; p.modo='espera'; p.t=ts+1500+Math.random()*2500; } }
+    } else { // huye: corre de regreso a la banqueta de donde salió y luego lo vuelve a intentar
+      p.y+=p.dir*30*dt;
+      if((p.dir>0 && p.y>=Y_ARR)||(p.dir<0 && p.y<=Y_ABA)){ p.y=p.dir>0?Y_ARR:Y_ABA; p.modo='espera'; p.t=ts+900+Math.random()*1400; }
+    }
+    const prof=Math.max(0,Math.min(1,(p.y)/Y_ARR)), k=1-prof*.25;
+    p.el.style.bottom=p.y.toFixed(1)+'px';
+    p.el.style.left=(p.x + prof*-8).toFixed(1)+'px';
+    p.el.style.transform=`scale(${k.toFixed(3)})`;
+    p.el.style.zIndex = p.y>=13? 2 : 5;
+    p.el.classList.toggle('camina', p.modo==='cruza'); p.el.classList.toggle('huye', p.modo==='huye');
+  }
+  peaRAF=requestAnimationFrame(pasoPeatones);
+}
+/* ---- Una sola escena que se coloca en la tarjeta o en pantalla completa ---- */
+let ESCN=null, enPantalla=false;
+function nodoEscena(){
+  if(ESCN) return ESCN;
+  const d=document.createElement('div'); d.className='esc-box';
+  d.innerHTML=`<div id="letrero"></div>${escenaHTML()}`;
+  d.addEventListener('click',ev=>{ const b=ev.target.closest('[data-av]'); const j=jornadaActiva(); if(b && j) accionAvance(j,b.dataset.av); });
+  ESCN=d; return d;
+}
+const escenaSlotHTML = () => `<div id="escenaSlot"></div><button class="btn sec2 small" data-pantalla="1">⛶ Ver a pantalla completa</button>`;
+function montarEscena(){
+  const n=nodoEscena(), slot= enPantalla? $('#pcSlot') : $('#escenaSlot'); if(!slot) return;
+  if(n.parentNode!==slot) slot.appendChild(n);
+  actualizarEscena(jornadaActiva()); ajustarMarquesina();
+  if(enPantalla) escalarPantalla();
+}
+function abrirPantalla(){
+  let o=$('#pantallaEsc');
+  if(!o){ o=document.createElement('div'); o.id='pantallaEsc'; o.setAttribute('role','dialog'); o.setAttribute('aria-label','Gráfica del coche a pantalla completa');
+    o.innerHTML=`<div class="pc-top"><button id="pcSalir">✕ Salir</button><span class="pc-hint">Gira el teléfono para verlo más grande</span></div><div id="pcSlot"></div>`;
+    document.body.appendChild(o); o.querySelector('#pcSalir').onclick=cerrarPantalla; }
+  enPantalla=true; o.classList.add('open'); document.body.classList.add('sin-scroll');
+  montarEscena();
+  try{ const r=document.documentElement, f=r.requestFullscreen||r.webkitRequestFullscreen;
+    if(f){ const pr=f.call(r); if(pr && pr.then) pr.then(()=>{ try{ screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} setTimeout(escalarPantalla,300); }).catch(()=>{}); } }catch(e){}
+  pantallaEncendida(true);
+}
+function cerrarPantalla(){
+  enPantalla=false; const o=$('#pantallaEsc'); if(o) o.classList.remove('open'); document.body.classList.remove('sin-scroll');
+  if(ESCN){ ESCN.classList.remove('grande'); ESCN.style.cssText=''; }
+  try{ if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); else if(document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen(); }catch(e){}
+  try{ screen.orientation.unlock(); }catch(e){}
+  montarEscena(); const j=jornadaActiva(); pantallaEncendida(!!(j&&j.viajeActivo));
+}
+function escalarPantalla(){
+  if(!enPantalla || !ESCN) return; const slot=$('#pcSlot'); if(!slot) return;
+  const W=slot.clientWidth, H=slot.clientHeight;
+  ESCN.classList.add('grande'); ESCN.style.transform='none';
+  let k=1; for(let i=0;i<3;i++){ ESCN.style.width=(W/k)+'px'; const h=ESCN.offsetHeight; k=Math.max(1, Math.min(H/h, W/330)); }
+  ESCN.style.width=(W/k)+'px';
+  const h=ESCN.offsetHeight*k;
+  ESCN.style.transform=`translate(0px, ${Math.max(0,(H-h)/2)}px) scale(${k})`;
+}
+document.addEventListener('click',e=>{ if(e.target.closest('[data-pantalla]')) abrirPantalla(); });
+window.addEventListener('resize',()=>{ if(enPantalla) setTimeout(escalarPantalla,120); });
+window.addEventListener('orientationchange',()=>{ if(enPantalla) setTimeout(escalarPantalla,350); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && enPantalla && !$('#np.open')) cerrarPantalla(); });
 
 /* =================== Calzada de Tlalpan (Taxqueña ↔ Alfredo Chavero): Metro; motocicletas =================== */
 // Trazo aproximado de la Calzada de Tlalpan donde el Metro corre en superficie (de sur a norte)
@@ -2460,7 +2753,7 @@ async function flujoTerminarJornada(j){
 function renderJornada(){
   const v=$('#v-jornada'); const j=jornadaActiva();
   if(!j){
-    stopGPS(); gpsState='off';
+    startGPS();
     const ult=Object.values(jornadas).filter(x=>x.estado==='cerrada').sort((a,b)=>b.fin-a.fin)[0];
     v.innerHTML=`
       <div class="card">
@@ -2468,12 +2761,13 @@ function renderJornada(){
         <p class="sec" style="margin-top:0">Te pediré el odómetro, la batería y la autonomía, un dato por pantalla.</p>
         <button class="btn go" id="btnIniciar" style="padding:22px;font-size:20px">▶ Iniciar jornada</button>
       </div>
+      <div class="card">${escenaSlotHTML()}</div>
       ${cargaCardHTML()}
       ${mapaCardHTML(null)}
       ${ult? resumenCard(ult,'Última jornada') : '<div class="card empty">Aún no hay jornadas registradas.</div>'}`;
     $('#btnIniciar').onclick=()=>flujoIniciarJornada(ult);
     conectarCargaCard();
-    $('#btnUbic').onclick=()=>accionUbicacion(null); conectarMapaModo(null);
+    $('#btnUbic').onclick=()=>accionUbicacion(null); conectarMapaModo(null); montarEscena();
     clearInterval(tick); tick=setInterval(actualizarEnVivo,1000);
     return;
   }
@@ -2494,6 +2788,7 @@ function renderJornada(){
       <button class="btn sec2 small" id="btnCarga">🔌 ${j.batIni!=null?'Registrar carga de batería':'Registrar batería inicial'}</button>
       ${(j.cargas||[]).length?`<button class="btn sec2 small" id="btnVerCargas">Ver / quitar cargas</button>`:''}
     </div>
+    ${!va? `<div class="card">${escenaSlotHTML()}</div>`:''}
     ${cargaActiva()? cargaCardHTML():''}
     <div class="kpis" style="margin-bottom:12px">
       <div class="kpi"><div class="l">Ganancia</div><div class="v">${fmt$0(s.ganancia)}</div></div>
@@ -2503,9 +2798,9 @@ function renderJornada(){
     </div>
     ${va? `
     <div class="card best">
-      <div id="letrero">${letreroHTML()}</div>
+
       <div class="muted">Viaje #${j.viajes.length+1} · desde ${fmtHora(va.inicio)} · odómetro ${fmtNum(va.kmIni)} km${va.autIni!=null?' · autonomía '+fmtNum(va.autIni)+' km':''}${va.gpsKm? ' · GPS '+fmtKm(va.gpsKm):''}</div>
-      <div id="avance">${escenaHTML(j)}</div>
+      ${escenaSlotHTML()}
       <div id="trafLive">${va.traficoActual? tramoHTML(va.traficoActual,true):''}</div>
       ${(va.trafico||[]).map(t=>tramoHTML(t)).join('')}
       <div class="muted" style="font-size:12px;margin-top:6px">🧭 Inicio: ${va.coordIni? `<a href="${gmaps(va.coordIni)}" target="_blank" rel="noopener" style="color:var(--accent)">${fmtCoord(va.coordIni)}</a> (${zona(va.coordIni)})` : 'sin ubicación — toca «Obtener ubicación» en el mapa'}</div>
@@ -2523,7 +2818,7 @@ function renderJornada(){
     <div style="margin-top:12px">${mapaCardHTML(j)}</div>`;
   updateGpsUI();
   clearInterval(tick); tick=setInterval(actualizarEnVivo,1000);
-  conectarCargaCard();
+  conectarCargaCard(); montarEscena();
   pantallaEncendida(!!va);
   $('#btnCarga').onclick=()=>flujoCarga(j);
   const vc=$('#btnVerCargas'); if(vc) vc.onclick=()=>openModal(`<h3>Cargas de hoy</h3>
@@ -2537,8 +2832,7 @@ function renderJornada(){
     $('#btnViajeCompleto').onclick=()=>formViaje(j,null);
   } else {
     $('#btnFinViaje').onclick=()=>flujoTerminarViaje(j);
-    actualizarEscena(j); ajustarMarquesina();
-    $('#avance').addEventListener('click',e=>{ const b=e.target.closest('[data-av]'); if(b) accionAvance(j,b.dataset.av); });
+
     $('#btnCancelViaje').onclick=()=>confirmar('¿Cancelar el viaje en curso? No se guardará.',()=>{ j.viajeActivo=null; save(j); render(); },'Cancelar viaje');
   }
   $('#btnFinJornada').onclick=()=>{ if(va){ toast('Primero termina el viaje en curso'); return; } flujoTerminarJornada(j); };
