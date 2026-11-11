@@ -813,6 +813,25 @@ input.numf{cursor:pointer;caret-color:transparent}
 .letrero .nom.mueve .t{animation:marquesina var(--dur) linear infinite}
 @keyframes marquesina{from{transform:translateX(0)}to{transform:translateX(var(--dist))}}
 @media (prefers-reduced-motion:reduce){.letrero .nom.mueve .t{animation-duration:calc(var(--dur) * 2)}}
+
+/* ---- Calzada de Tlalpan: vía del Metro y tren ---- */
+.escena .via{display:none;bottom:46px;height:40px;animation:mV 5s linear infinite}
+.escena.dia .via{background-image:var(--vi-d)} .escena.noche .via{background-image:var(--vi-n)}
+.escena.tlalpan .cerca{display:none} .escena.tlalpan .via{display:block}
+@keyframes mV{from{background-position-x:0}to{background-position-x:-240px}}
+.escena.parado .via{animation-play-state:paused}
+.escena .metro{display:none;position:absolute;bottom:58px;left:-640px;z-index:1}
+.escena.tlalpan .metro{display:block;animation:metroPasa 120s linear 2s infinite}
+@keyframes metroPasa{0%{left:-640px}8%{left:110%}100%{left:110%}}
+.escena .metro .ven{fill:#2b3b4d} .escena.noche .metro .ven{fill:#ffe08a}
+.escena .metro .faro-m{fill:#fff7c2} .escena.noche .metro .faro-m{filter:drop-shadow(0 0 4px #fff3a0)}
+/* ---- Motocicletas (siguen avanzando aunque el semáforo esté en rojo) ---- */
+.escena .moto{position:absolute;bottom:20px;left:-60px;z-index:2;animation:motoPasa 9s linear infinite}
+.escena .moto.m1{animation-duration:9s;animation-delay:1s}
+.escena .moto.m2{bottom:5px;z-index:4;animation-duration:14s;animation-delay:6s}
+@keyframes motoPasa{0%{left:-60px}32%{left:105%}100%{left:105%}}
+.escena .faro-moto{fill:#fff3b0} .escena.noche .moto{filter:drop-shadow(8px 0 6px rgba(255,240,170,.55))}
+@media (prefers-reduced-motion:reduce){.escena .moto,.escena .metro{animation-duration:30s}}
 /* ---- Escena del viaje ---- */
 .escena{position:relative;height:172px;border-radius:12px;overflow:hidden;margin-top:4px;user-select:none}
 .escena.dia{background:linear-gradient(#6fbdf3,#cfeaff 72%)}
@@ -2231,7 +2250,7 @@ function tiraCasas(noche, conCasa){
 }
 function sombra(c){ const n=parseInt(c.slice(1),16); const f=v=>Math.round(v*.38); return '#'+[f(n>>16),f((n>>8)&255),f(n&255)].map(v=>v.toString(16).padStart(2,'0')).join(''); }
 let TIRAS=null;
-function tiras(){ if(!TIRAS) TIRAS={ edD:tiraEdificios(false), edN:tiraEdificios(true), caD:tiraCasas(false), caN:tiraCasas(true), cbD:tiraCasas(false,true), cbN:tiraCasas(true,true) }; return TIRAS; }
+function tiras(){ if(!TIRAS) TIRAS={ edD:tiraEdificios(false), edN:tiraEdificios(true), caD:tiraCasas(false), caN:tiraCasas(true), cbD:tiraCasas(false,true), cbN:tiraCasas(true,true), viD:tiraVia(false), viN:tiraVia(true) }; return TIRAS; }
 /* ¿Voy por Salvador Allende, Col. Las Peñas, Iztapalapa? (por dirección; y, una vez detectada, también por cercanía) */
 const LS_CASA='bitacoraUber.puntoSalvadorAllende';
 const sinAcentos = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -2249,12 +2268,15 @@ const logoAuto = () => { const i=document.querySelector('.logo-auto'); return i?
 
 function escenaHTML(j){
   const T=tiras();
-  return `<div class="escena" id="escenaV" style="--ed-d:${T.edD};--ed-n:${T.edN};--ca-d:${T.caD};--ca-n:${T.caN};--cb-d:${T.cbD};--cb-n:${T.cbN}">
+  return `<div class="escena" id="escenaV" style="--ed-d:${T.edD};--ed-n:${T.edN};--ca-d:${T.caD};--ca-n:${T.caN};--cb-d:${T.cbD};--cb-n:${T.cbN};--vi-d:${T.viD};--vi-n:${T.viN}">
     <div class="cielo"><div class="astro"></div><div class="estrellas"></div><div class="nube n1"></div><div class="nube n2"></div></div>
     <div class="capa lejos"></div>
     <div class="capa cerca"></div>
+    <div class="capa via"></div>
+    <div class="metro" aria-hidden="true">${metroSVG()}</div>
     <div class="banqueta"></div>
     <div class="calle"><div class="raya"></div></div>
+    <div class="moto m1">${motoSVG('#c62828')}</div><div class="moto m2">${motoSVG('#1565c0')}</div>
     <div class="ruta"><div class="riel"></div><div class="prog" id="escProg"></div>
       <span class="pt a">A</span><span class="pt b" id="escB">B</span></div>
     <div class="coche" id="escCoche"><div class="faros"></div><img alt="Tu coche" src="${logoAuto()}"><div class="semaforo">${SEMAFORO}</div></div>
@@ -2268,7 +2290,8 @@ function actualizarEscena(j){
   const p=progresoViaje(j), px=p.pct==null? 0 : Math.min(1,p.pct), llego=p.pct!=null && px>=1;
   const det=segundosDetenido(), noche=esDeNoche();
   e.classList.toggle('noche',noche); e.classList.toggle('dia',!noche);
-  e.classList.toggle('casa', enSalvadorAllende());
+  const tl=enCalzadaTlalpan();
+  e.classList.toggle('tlalpan', tl); e.classList.toggle('casa', !tl && enSalvadorAllende());
   e.classList.toggle('parado', det>=3 || llego); e.classList.toggle('rojo', det>=10 && !llego);
   const c=$('#escCoche'); if(c) c.style.left=`calc(8% + ${(px*84).toFixed(2)}% - 26px)`;
   const pr=$('#escProg'); if(pr){ pr.style.width=(px*100).toFixed(2)+'%'; pr.classList.toggle('ok',llego); }
@@ -2282,6 +2305,67 @@ function actualizarEscena(j){
   const ai=$('#avInfo'); if(ai){ const h=(llego?'🏁 ¡Llegaste al destino estimado! ':'')+info; if(ai.dataset.h!==h){ ai.dataset.h=h; ai.innerHTML=h; } }
   const ac=$('#avActs'); if(ac){ const h=`${p.dist && gpsState!=='on'?'<button data-av="odo">📍 Actualizar odómetro</button>':''}<button data-av="dest">🎯 ${p.dist||va.minEst?'Cambiar distancia / tiempo':'Agregar distancia / tiempo'}</button>`; if(ac.dataset.h!==h){ ac.dataset.h=h; ac.innerHTML=h; } }
   pintarLetrero();
+}
+
+/* =================== Calzada de Tlalpan (Taxqueña ↔ Alfredo Chavero): Metro; motocicletas =================== */
+// Trazo aproximado de la Calzada de Tlalpan donde el Metro corre en superficie (de sur a norte)
+const TLALPAN_TRAZO=[[19.3434,-99.1402],[19.3533,-99.1450],[19.3617,-99.1431],[19.3697,-99.1417],[19.3794,-99.1397],
+  [19.3875,-99.1386],[19.3953,-99.1378],[19.4008,-99.1369],[19.4086,-99.1356],[19.4161,-99.1342],[19.4190,-99.1338]];
+function distTrazoKm(p){
+  let m=Infinity; const k=Math.cos(p.lat*Math.PI/180);
+  for(let i=1;i<TLALPAN_TRAZO.length;i++){
+    const [a1,o1]=TLALPAN_TRAZO[i-1], [a2,o2]=TLALPAN_TRAZO[i];
+    const ax=(o1-p.lon)*k, ay=a1-p.lat, bx=(o2-p.lon)*k, by=a2-p.lat, dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy;
+    let t=L? -(ax*dx+ay*dy)/L : 0; t=Math.max(0,Math.min(1,t));
+    m=Math.min(m, Math.hypot(ax+t*dx, ay+t*dy)*111.32);
+  }
+  return m;
+}
+function enCalzadaTlalpan(){
+  const pos=ultimaPos; if(!pos) return false;
+  if(pos.lat<19.3425 || pos.lat>19.4200) return false;                 // entre Taxqueña y Alfredo Chavero
+  if(distTrazoKm(pos) > 0.18) return false;                            // sobre la calzada (incluye laterales)
+  const c=dirActual && dirActual.calle;
+  return !c || /tlalpan|san antonio abad/.test(sinAcentos(c));         // si se conoce la calle, debe ser la Calzada
+}
+/* Tren de 9 vagones (diseño genérico, sin logotipos) */
+function metroSVG(){
+  const L=64, G=3, H=30; let g='';
+  for(let i=0;i<9;i++){ const x=i*(L+G), cab=(i===8);
+    g+=`<rect x="${x}" y="2" width="${L}" height="${H-6}" rx="${cab?8:3}" fill="#f07a1a"/>`;
+    g+=`<rect x="${x}" y="${H-12}" width="${L}" height="5" fill="#e9e4da"/>`;
+    for(let w=0; w<4; w++) g+=`<rect class="ven" x="${x+5+w*15}" y="6" width="11" height="8" rx="1.5"/>`;
+    g+=`<rect x="${x+L/2-4}" y="5" width="8" height="${H-12}" fill="#c75f10"/>`;
+    g+=`<circle cx="${x+12}" cy="${H-2}" r="3" fill="#222"/><circle cx="${x+L-12}" cy="${H-2}" r="3" fill="#222"/>`;
+    if(i<8) g+=`<rect x="${x+L}" y="10" width="${G}" height="10" fill="#333"/>`;
+    if(cab) g+=`<rect class="ven" x="${x+L-12}" y="5" width="9" height="10" rx="2"/><circle class="faro-m" cx="${x+L-3}" cy="${H-9}" r="2.2"/>`;
+  }
+  return `<svg viewBox="0 0 ${9*(L+G)} ${H+2}" width="${9*(L+G)}" height="${H+2}" aria-hidden="true">${g}</svg>`;
+}
+function tiraVia(noche){
+  const W=240, H=40;
+  const g=`<rect x="0" y="0" width="${W}" height="${H}" fill="${noche?'#2a2a2e':'#8d8a82'}"/>
+    <rect x="0" y="${H-6}" width="${W}" height="6" fill="${noche?'#3a3a40':'#b7b3a8'}"/>
+    ${Array.from({length:12},(_,i)=>`<rect x="${i*20+4}" y="22" width="10" height="8" fill="${noche?'#3b332b':'#6b5a48'}"/>`).join('')}
+    <rect x="0" y="23" width="${W}" height="2" fill="${noche?'#9aa':'#ddd'}"/><rect x="0" y="28" width="${W}" height="2" fill="${noche?'#9aa':'#ddd'}"/>
+    <rect x="0" y="0" width="${W}" height="3" fill="${noche?'#3d5a3d':'#4f8a4f'}"/>
+    ${Array.from({length:6},(_,i)=>`<rect x="${i*40+2}" y="0" width="3" height="16" fill="${noche?'#4d6a4d':'#3f7a3f'}"/>`).join('')}
+    <line x1="0" y1="8" x2="${W}" y2="8" stroke="${noche?'#4d6a4d':'#3f7a3f'}" stroke-width="1"/>`;
+  return svgURL(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${g}</svg>`);
+}
+/* Motocicleta con repartidor (diseño genérico) */
+function motoSVG(color){
+  return `<svg viewBox="0 0 44 30" width="44" height="30" aria-hidden="true">
+    <circle cx="9" cy="24" r="5.5" fill="#1b1b1b"/><circle cx="9" cy="24" r="2.2" fill="#9a9a9a"/>
+    <circle cx="35" cy="24" r="5.5" fill="#1b1b1b"/><circle cx="35" cy="24" r="2.2" fill="#9a9a9a"/>
+    <path d="M9 24 L17 17 L30 17 L35 24" stroke="#444" stroke-width="2.5" fill="none"/>
+    <path d="M14 17 Q20 12 30 14 L33 18 L16 19 Z" fill="${color}"/>
+    <rect x="1" y="8" width="12" height="10" rx="1.5" fill="#f2a12e"/><rect x="1" y="11" width="12" height="2" fill="#d98a1c"/>
+    <path d="M18 15 L22 6 L26 7 L24 15 Z" fill="#2c3e57"/>
+    <circle cx="24" cy="4.5" r="4" fill="#d22"/><rect x="25" y="3" width="3.5" height="2.5" rx="1" fill="#9fd3ff"/>
+    <path d="M25 9 L32 13" stroke="#2c3e57" stroke-width="2.5"/>
+    <circle class="faro-moto" cx="39" cy="17" r="1.8"/>
+  </svg>`;
 }
 
 /* =================== Vista: Jornada =================== */
