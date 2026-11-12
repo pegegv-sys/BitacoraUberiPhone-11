@@ -862,6 +862,55 @@ body.sin-scroll{overflow:hidden}
 @keyframes pierna{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
 .escena.noche .peaton svg{filter:brightness(.8)}
 
+
+/* ---- Metro elevado / Trolebús elevado (viaducto) ---- */
+.escena .viad{display:none;bottom:46px;height:78px;animation:mVd 5s linear infinite;z-index:0}
+.escena.dia .viad{background-image:var(--vd-d)} .escena.noche .viad{background-image:var(--vd-n)}
+.escena.elevado .viad{display:block}
+@keyframes mVd{from{background-position-x:0}to{background-position-x:-240px}}
+.escena.parado .viad{animation-play-state:paused}
+.escena.elev-metro .metro{display:block;bottom:124px;animation:metroPasa 120s linear 2s infinite}
+.escena .troe{display:none;position:absolute;bottom:124px;left:-150px;z-index:1}
+.escena .metro svg,.escena .troe svg,.escena .mbus svg{display:block}
+.escena .troe svg{transform:scale(.66);transform-origin:0 100%}
+.escena .mbus .fv{fill:#fff6c2}
+.escena.elev-trole .troe{display:block;animation:troePasa 45s linear 4s infinite}
+@keyframes troePasa{0%{left:-150px}22%{left:110%}100%{left:110%}}
+/* ---- Metrobús (carril confinado, carril de atrás) ---- */
+.escena .mbus{display:none;position:absolute;bottom:24px;left:-190px;z-index:1}
+.escena.metrobus .mbus{display:block;animation:mbPasa 24s linear 3s infinite}
+@keyframes mbPasa{0%{left:-190px}40%{left:110%}100%{left:110%}}
+.escena .mbus svg{transform:scale(.85);transform-origin:0 100%}
+.escena.noche .mbus .ven{fill:#ffe08a}
+/* ---- Cablebús ---- */
+.escena .cable{display:none;position:absolute;left:0;right:0;top:14px;height:40px;z-index:0}
+.escena.cablebus .cable{display:block}
+.escena .cable .hilos{position:absolute;left:0;top:0;width:100%;height:20px}
+.escena .cable .hilos line{stroke:#3a3a3a;stroke-width:.35;vector-effect:non-scaling-stroke;stroke-width:1.2px}
+.escena.noche .cable .hilos line{stroke:#9aa}
+.escena .gon{position:absolute;top:0;left:-20px;animation:gonIda 18s linear infinite}
+.escena .gon.g1{animation-delay:-6s} .escena .gon.g2{animation-delay:-12s}
+.escena .gon.g3,.escena .gon.g4,.escena .gon.g5{top:8px;animation-name:gonVuelta}
+.escena .gon.g4{animation-delay:-6s} .escena .gon.g5{animation-delay:-12s}
+@keyframes gonIda{from{left:-20px;transform:translateY(0)}to{left:102%;transform:translateY(3px)}}
+@keyframes gonVuelta{from{left:102%;transform:translateY(3px)}to{left:-20px;transform:translateY(0)}}
+.escena.noche .gon .vg{fill:#ffe08a}
+/* ---- Aeropuerto ---- */
+.escena .torre{display:none;position:absolute;right:14%;bottom:58px;z-index:0}
+.escena.aero .torre{display:block}
+.escena .avion{display:none;position:absolute;left:-80px;bottom:70px;z-index:0}
+.escena.aero .avion{display:block;animation:avionPasa 26s linear 1s infinite}
+@keyframes avionPasa{0%{left:-80px;bottom:62px;transform:rotate(-9deg)}30%{left:108%;bottom:150px;transform:rotate(-9deg)}100%{left:108%;bottom:150px}}
+.escena.noche .avion svg{filter:drop-shadow(0 0 2px #fff)}
+.escena.noche .torre .vt{fill:#ffe08a}
+@media (prefers-reduced-motion:reduce){.escena .gon,.escena .avion,.escena .mbus,.escena .troe{animation-duration:60s}}
+/* ---- Taxímetro ---- */
+.taximetro{display:flex;align-items:center;gap:12px;margin:10px 0 4px;padding:10px 12px;border-radius:12px;background:#111;border:1px solid #333}
+.taximetro .tx-ico{font-size:24px}
+.taximetro .tx-l{font-size:12px;color:var(--text-muted)}
+.taximetro .tx-v{font:700 28px/1.05 "Courier New",ui-monospace,monospace;color:#ff4d3a;letter-spacing:1px;text-shadow:0 0 8px rgba(255,77,58,.55);font-variant-numeric:tabular-nums}
+.taximetro .tx-d{font-size:12px;color:var(--text-muted)}
+
 /* ---- Tráfico alrededor del coche ---- */
 .escena .flujo{position:absolute;left:8%;bottom:0;width:0;height:0;transition:left 1s linear}
 .escena .veh{position:absolute;transition:opacity .6s,transform .6s}
@@ -1365,6 +1414,7 @@ function actualizarEnVivo(){
   const lt=$('#liveTime'); if(lt&&j) lt.textContent=fmtDur(Date.now()-j.inicio);
   if(j && j.viajeActivo){
     const tt=$('#tripTime'); if(tt) tt.textContent=fmtCrono(Date.now()-j.viajeActivo.inicio);
+    const ts=$('#taxiSlot'); if(ts) ts.innerHTML=taximetroHTML(j.viajeActivo);
   }
   if(ESCN && document.body.contains(ESCN)) actualizarEscena(j);
   const cl=$('#cargaLive'); const ca=cargaActiva(); if(cl && ca) cl.innerHTML=cargaLiveHTML(ca);
@@ -2313,7 +2363,7 @@ function tiraCasas(noche, conCasa){
 }
 function sombra(c){ const n=parseInt(c.slice(1),16); const f=v=>Math.round(v*.38); return '#'+[f(n>>16),f((n>>8)&255),f(n&255)].map(v=>v.toString(16).padStart(2,'0')).join(''); }
 let TIRAS=null;
-function tiras(){ if(!TIRAS) TIRAS={ edD:tiraEdificios(false), edN:tiraEdificios(true), caD:tiraCasas(false), caN:tiraCasas(true), cbD:tiraCasas(false,true), cbN:tiraCasas(true,true), viD:tiraVia(false), viN:tiraVia(true) }; return TIRAS; }
+function tiras(){ if(!TIRAS) TIRAS={ edD:tiraEdificios(false), edN:tiraEdificios(true), caD:tiraCasas(false), caN:tiraCasas(true), cbD:tiraCasas(false,true), cbN:tiraCasas(true,true), viD:tiraVia(false), viN:tiraVia(true), vdD:tiraViaducto(false), vdN:tiraViaducto(true) }; return TIRAS; }
 /* ¿Voy por Salvador Allende, Col. Las Peñas, Iztapalapa? (por dirección; y, una vez detectada, también por cercanía) */
 const LS_CASA='bitacoraUber.puntoSalvadorAllende';
 const sinAcentos = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -2331,12 +2381,18 @@ const logoAuto = () => { const i=document.querySelector('.logo-auto'); return i?
 
 function escenaHTML(){
   const T=tiras();
-  return `<div class="escena" id="escenaV" style="--ed-d:${T.edD};--ed-n:${T.edN};--ca-d:${T.caD};--ca-n:${T.caN};--cb-d:${T.cbD};--cb-n:${T.cbN};--vi-d:${T.viD};--vi-n:${T.viN}">
+  return `<div class="escena" id="escenaV" style="--ed-d:${T.edD};--ed-n:${T.edN};--ca-d:${T.caD};--ca-n:${T.caN};--cb-d:${T.cbD};--cb-n:${T.cbN};--vi-d:${T.viD};--vi-n:${T.viN};--vd-d:${T.vdD};--vd-n:${T.vdN}">
     <div class="cielo"><div class="astro"></div><div class="estrellas"></div><div class="nube n1"></div><div class="nube n2"></div></div>
+    <div class="cable" aria-hidden="true"><svg class="hilos" preserveAspectRatio="none" viewBox="0 0 100 20"><line x1="0" y1="4" x2="100" y2="7" /><line x1="0" y1="12" x2="100" y2="15"/></svg>${[0,1,2,3,4,5].map(i=>`<div class="gon g${i}">${gondolaSVG(i)}</div>`).join('')}</div>
+    <div class="avion" aria-hidden="true">${avionSVG()}</div>
     <div class="capa lejos"></div>
+    <div class="torre" aria-hidden="true">${torreSVG()}</div>
     <div class="capa cerca"></div>
     <div class="capa via"></div>
+    <div class="capa viad"></div>
     <div class="metro" aria-hidden="true">${metroSVG()}</div>
+    <div class="troe" aria-hidden="true"><svg viewBox="0 0 132 74" width="132" height="74">${VEH.trole().svg}</svg></div>
+    <div class="mbus" aria-hidden="true">${metrobusSVG()}</div>
     <div class="banqueta"></div>
     <div class="calle"><div class="raya"></div></div>
     <div class="cebra" id="escCebra" aria-hidden="true"><div class="rayas"></div>${PEATONES.map((c,i)=>`<div class="peaton" data-i="${i}">${peatonSVG(c)}</div>`).join('')}</div>
@@ -2355,8 +2411,12 @@ function actualizarEscena(j){
   const va=j&&j.viajeActivo;
   const det=segundosDetenido(), noche=esDeNoche();
   e.classList.toggle('noche',noche); e.classList.toggle('dia',!noche);
-  const tl=enCalzadaTlalpan();
+  const cx=contextoTransporte();
+  const elevM = cx.metro==='e', elevT = !elevM && cx.troleElev;
+  const tl=enCalzadaTlalpan() || cx.metro==='s';
   e.classList.toggle('tlalpan', tl); e.classList.toggle('casa', !tl && enSalvadorAllende());
+  e.classList.toggle('elevado', elevM||elevT); e.classList.toggle('elev-metro', elevM); e.classList.toggle('elev-trole', elevT);
+  e.classList.toggle('metrobus', !!cx.metrobus); e.classList.toggle('cablebus', !!cx.cablebus); e.classList.toggle('aero', !!cx.aero);
   e.classList.toggle('sinviaje', !va);
   let info, acts='', llego=false;
   if(va){
@@ -2381,7 +2441,7 @@ function actualizarEscena(j){
     else if(gpsState!=='on') info+=' · <span class="muted">sin GPS: el paisaje se mueve de muestra</span>';
   }
   e.classList.toggle('parado', det>=3 || llego); e.classList.toggle('rojo', det>=10 && !llego);
-  const nivel=nivelTrafico(det); e.classList.toggle('pesado', nivel==='pesado'); armarTrafico(e, nivel, zonaTrafico());
+  const nivel=nivelTrafico(det); e.classList.toggle('pesado', nivel==='pesado'); armarTrafico(e, nivel, zonaTrafico(), cx);
   if(det>=10 && !llego) iniciarPeatones();
   if(det>=10 && !llego) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
   const ai=$('#avInfo'); if(ai && ai.dataset.h!==info){ ai.dataset.h=info; ai.innerHTML=info; }
@@ -2390,6 +2450,118 @@ function actualizarEscena(j){
 }
 
 
+
+
+/* =================== Taxímetro (tarifa de taxi libre CDMX) =================== */
+// Diurna 06:00–22:59: banderazo $8.74 y $1.07 cada 250 m o 45 s · Nocturna 23:00–05:59: $10.48 y $1.28
+const TAXI={dia:{b:8.74,inc:1.07}, noche:{b:10.48,inc:1.28}, m:250, s:45};
+const esNocheTaxi=ts=>{ const h=new Date(ts).getHours(); return h>=23||h<6; };
+function taxiAvanzar(va, now=Date.now(), forzar=false){
+  let t=va.taxi;
+  if(!t){ const n=esNocheTaxi(va.inicio); t=va.taxi={u:0, saltos:0, monto:TAXI[n?'noche':'dia'].b, km:va.gpsKm||0, ts:va.inicio, noche:n}; }
+  const dt=Math.max(0,(now-t.ts)/1000), dm=Math.max(0,((va.gpsKm||0)-t.km)*1000);
+  if(!forzar && dm===0 && dt<6) return t;                        // espera la siguiente lectura del GPS
+  // Taxímetro de doble tarifa: en cada tramo cobra por distancia o por tiempo, lo que sea mayor
+  const antes=Math.floor(t.u+1e-9); t.u+=Math.max(dm/TAXI.m, dt/TAXI.s);
+  const n=Math.floor(t.u+1e-9)-antes;
+  if(n>0){ t.saltos+=n; t.monto=Math.round((t.monto+n*TAXI[esNocheTaxi(now)?'noche':'dia'].inc)*100)/100; }
+  t.km=va.gpsKm||0; t.ts=now; return t;
+}
+function taxiFinal(va, finTs, kmOdo){
+  const t=taxiAvanzar(va, finTs, true);
+  // Si el GPS no midió todo el viaje, el odómetro manda: lo mínimo que marcaría el taxímetro con esa distancia y ese tiempo
+  if(kmOdo>0){ const tar=TAXI[t.noche?'noche':'dia'], u=Math.max(kmOdo*1000/TAXI.m, (finTs-va.inicio)/1000/TAXI.s);
+    return Math.max(t.monto, Math.round((tar.b+Math.floor(u+1e-9)*tar.inc)*100)/100); }
+  return t.monto;
+}
+function taximetroHTML(va){
+  const t=taxiAvanzar(va);
+  return `<div class="taximetro" id="taximetro"><div class="tx-ico">🚕</div><div style="flex:1">
+    <div class="tx-l">Taxímetro CDMX · tarifa ${t.noche?'nocturna':'diurna'}</div>
+    <div class="tx-v">${fmt$(t.monto)}</div>
+    <div class="tx-d">Banderazo ${fmt$(TAXI[t.noche?'noche':'dia'].b)} · ${t.saltos} ${t.saltos===1?'salto':'saltos'} de ${fmt$(TAXI[t.noche?'noche':'dia'].inc)} (250 m o 45 s)</div></div></div>`;
+}
+const difTaxi=(uber,taxi)=>{ const d=uber-taxi; return Math.abs(d)<0.5? 'casi lo mismo' : d>0? `Uber pagó ${fmt$(d)} más` : `el taxi cobraría ${fmt$(-d)} más`; };
+/* =================== Transporte de la ciudad en el paisaje =================== */
+// Tramos visibles del Metro (superficie 's' o elevado 'e') y corredores de Metrobús.
+// Fuente: geometrías de datos abiertos CDMX (STC Metro y Metrobús), simplificadas.
+const TRANSPORTE={"metro":[{"l":"4","t":"e","p":[[19.4029,-99.1217],[19.4132,-99.1217],[19.4311,-99.1191],[19.4375,-99.1185],[19.4436,-99.1174],[19.4622,-99.1129],[19.4726,-99.1085],[19.4767,-99.1074],[19.4817,-99.1067],[19.485,-99.1044]]},{"l":"5","t":"s","p":[[19.4511,-99.1045],[19.45,-99.1015],[19.4499,-99.1003],[19.4518,-99.0948],[19.4518,-99.0937],[19.4513,-99.0927],[19.4466,-99.0878],[19.442,-99.0855],[19.4406,-99.0854],[19.4357,-99.0868],[19.4331,-99.089],[19.4283,-99.0917],[19.427,-99.0917],[19.4248,-99.0889],[19.4206,-99.0817],[19.4186,-99.08],[19.4151,-99.0743]]},{"l":"9","t":"e","p":[[19.4154,-99.0722],[19.4092,-99.0763],[19.4075,-99.0782],[19.4069,-99.0796],[19.4092,-99.0968],[19.4086,-99.1013],[19.4084,-99.1105],[19.4092,-99.1215]]},{"l":"A","t":"s","p":[[19.4153,-99.0719],[19.4126,-99.0739],[19.4108,-99.0749],[19.4084,-99.0747],[19.407,-99.0736],[19.3785,-99.0242],[19.3615,-99.0012],[19.3606,-98.9984],[19.3588,-98.9794],[19.3595,-98.9738],[19.359,-98.9708],[19.3581,-98.9683],[19.3557,-98.9644],[19.3539,-98.9626],[19.3506,-98.9609]]},{"l":"B","t":"s","p":[[19.4366,-99.1036],[19.4415,-99.0931],[19.4499,-99.0813],[19.4518,-99.078],[19.4602,-99.0663],[19.462,-99.0601],[19.4627,-99.0592],[19.5345,-99.0275]]},{"l":"12","t":"e","p":[[19.3375,-99.1089],[19.3348,-99.1089],[19.3296,-99.107],[19.3287,-99.1059],[19.3258,-99.0994],[19.3251,-99.0988],[19.3233,-99.0982],[19.3226,-99.0975],[19.3187,-99.0759],[19.3138,-99.0702],[19.313,-99.0698],[19.3096,-99.0696],[19.307,-99.067],[19.3026,-99.0546],[19.3005,-99.0496],[19.2996,-99.043],[19.2989,-99.0422],[19.2971,-99.0414],[19.2965,-99.0405],[19.2962,-99.0373],[19.2977,-99.0277],[19.2975,-99.0267],[19.2927,-99.0226],[19.2898,-99.0182],[19.2886,-99.0153],[19.286,-99.0142]]},{"l":"3","t":"s","p":[[19.3366,-99.1778],[19.3351,-99.1754],[19.3327,-99.1739],[19.3291,-99.1734],[19.3244,-99.1739]]}],"mb":[{"l":"07","p":[[[19.4077,-99.1844],[19.4029,-99.1868],[19.4015,-99.1863],[19.4015,-99.1859]],[[19.4077,-99.1844],[19.4015,-99.1848],[19.4015,-99.1859]],[[19.4333,-99.1543],[19.4285,-99.1636],[19.4271,-99.1672],[19.4267,-99.1674],[19.4268,-99.1681],[19.4233,-99.1756],[19.4232,-99.1776],[19.421,-99.1776],[19.4201,-99.1772],[19.4077,-99.1844]],[[19.4237,-99.1781],[19.4206,-99.178],[19.42,-99.179],[19.4077,-99.1844]],[[19.4237,-99.1781],[19.4239,-99.1787],[19.4243,-99.1787],[19.4243,-99.1783],[19.4237,-99.1781]],[[19.4333,-99.1543],[19.4273,-99.1672],[19.4274,-99.1678],[19.4268,-99.1682],[19.4234,-99.1754],[19.4237,-99.1781]],[[19.493,-99.121],[19.4893,-99.1176]],[[19.4893,-99.1176],[19.4886,-99.1174],[19.4832,-99.1193]],[[19.4832,-99.1193],[19.4842,-99.1188],[19.4825,-99.1144],[19.4842,-99.1136],[19.4874,-99.1128],[19.4893,-99.1176]],[[19.4832,-99.1193],[19.4533,-99.1308],[19.4478,-99.1351],[19.4373,-99.1467],[19.4351,-99.1505],[19.4234,-99.1755],[19.4269,-99.1994]],[[19.4873,-99.1138],[19.4877,-99.1138],[19.4888,-99.1173],[19.4832,-99.1193]],[[19.4832,-99.1193],[19.4842,-99.1188],[19.4826,-99.1143],[19.4873,-99.1128],[19.4876,-99.1134],[19.4873,-99.1138]],[[19.4832,-99.1193],[19.4533,-99.1308],[19.4478,-99.1351],[19.4373,-99.1467],[19.4351,-99.1505],[19.4234,-99.1755],[19.4269,-99.1994]]]},{"l":"04","p":[[[19.4449,-99.1523],[19.4409,-99.1525],[19.4368,-99.1541],[19.4369,-99.1555],[19.4357,-99.1556],[19.4353,-99.1532],[19.4337,-99.1534],[19.4333,-99.1506],[19.4318,-99.1512],[19.4317,-99.1509],[19.4293,-99.1338],[19.4261,-99.1342],[19.4259,-99.1308],[19.4236,-99.131],[19.4222,-99.1203],[19.4276,-99.1194],[19.427,-99.1113],[19.4282,-99.1119],[19.4297,-99.1149],[19.431,-99.1152]],[[19.4293,-99.1338],[19.4291,-99.1326],[19.4259,-99.1331],[19.4257,-99.1314],[19.4263,-99.13],[19.4256,-99.1256],[19.4235,-99.1259],[19.4234,-99.1202]],[[19.4255,-99.1199],[19.4247,-99.1137],[19.4269,-99.1134]],[[19.4354,-99.1532],[19.4365,-99.1531],[19.4367,-99.1542]],[[19.4449,-99.1523],[19.4409,-99.1525],[19.4388,-99.1534],[19.4362,-99.1406],[19.4386,-99.1402],[19.4354,-99.1148],[19.4311,-99.1154]],[[19.4354,-99.1146],[19.4387,-99.1402],[19.4362,-99.1406],[19.4389,-99.1533],[19.4409,-99.1525],[19.4449,-99.1522]],[[19.4311,-99.1152],[19.4378,-99.1142],[19.4374,-99.1094],[19.4341,-99.1077],[19.4332,-99.1052],[19.4271,-99.093],[19.4265,-99.0919],[19.4258,-99.0923],[19.4261,-99.0926],[19.4331,-99.0888],[19.4338,-99.088],[19.4338,-99.0865],[19.4353,-99.0837]],[[19.4354,-99.0836],[19.4387,-99.078],[19.435,-99.0847],[19.4349,-99.0872],[19.4314,-99.0896],[19.4272,-99.0918],[19.4266,-99.0914],[19.4188,-99.0787],[19.4189,-99.0783],[19.421,-99.077],[19.4215,-99.0772],[19.4213,-99.0777],[19.4208,-99.0775],[19.4195,-99.0783],[19.4194,-99.0789],[19.4182,-99.0793],[19.4205,-99.0815],[19.4271,-99.0927],[19.4276,-99.093],[19.4278,-99.0924],[19.427,-99.0926],[19.4333,-99.1052],[19.4341,-99.1075],[19.4353,-99.1084],[19.4374,-99.1091],[19.438,-99.1143],[19.4354,-99.1147]],[[19.4373,-99.1461],[19.4363,-99.1406],[19.4387,-99.1402],[19.4355,-99.1148],[19.4379,-99.1144],[19.4375,-99.1094],[19.4369,-99.1087],[19.4355,-99.1085],[19.4341,-99.1076],[19.4334,-99.1054],[19.4267,-99.0922],[19.4209,-99.082],[19.4174,-99.0783],[19.4184,-99.0776],[19.417,-99.0751],[19.4173,-99.0747],[19.417,-99.0727],[19.4163,-99.0724],[19.4176,-99.0717],[19.4174,-99.0726],[19.417,-99.0727]],[[19.4176,-99.0717],[19.4207,-99.0691],[19.4211,-99.0579],[19.4216,-99.0567],[19.4301,-99.0527],[19.4306,-99.0537]],[[19.4306,-99.0537],[19.4304,-99.052],[19.4222,-99.0556],[19.4213,-99.0564],[19.4208,-99.0577],[19.4205,-99.0688],[19.4176,-99.0717]]]},{"l":"01 y 02","p":[[[19.3407,-99.1901],[19.4036,-99.1693],[19.403,-99.1685],[19.3986,-99.1673],[19.3971,-99.1649],[19.3962,-99.161],[19.3952,-99.146],[19.3933,-99.1328],[19.3938,-99.1318],[19.3972,-99.1306],[19.3978,-99.1291],[19.3984,-99.112],[19.3964,-99.0948],[19.3957,-99.093],[19.3845,-99.0763]],[[19.3845,-99.0763],[19.3957,-99.0929],[19.3964,-99.0947],[19.3984,-99.1121],[19.3978,-99.1292],[19.3971,-99.1306],[19.3937,-99.1318],[19.3933,-99.1329],[19.3952,-99.146],[19.3962,-99.1609],[19.3972,-99.1649],[19.3986,-99.1673],[19.403,-99.1685],[19.4036,-99.1693],[19.3478,-99.1874],[19.3407,-99.1901]]]},{"l":"01","p":[[[19.4968,-99.1197],[19.4986,-99.1194],[19.4988,-99.119],[19.4984,-99.1188],[19.493,-99.1201],[19.4903,-99.1212],[19.4582,-99.1474],[19.455,-99.1515],[19.4458,-99.1533],[19.423,-99.1631],[19.3475,-99.1875],[19.3398,-99.1904],[19.2963,-99.1851],[19.2954,-99.1843],[19.291,-99.1739],[19.2901,-99.1738],[19.2853,-99.1757],[19.2837,-99.1755],[19.2822,-99.1743],[19.2796,-99.1684],[19.279,-99.1679],[19.2786,-99.1688],[19.2793,-99.1691]],[[19.4968,-99.1197],[19.4986,-99.1194],[19.4988,-99.119],[19.4984,-99.1188],[19.493,-99.1201],[19.4903,-99.1212],[19.4582,-99.1474],[19.4552,-99.1514],[19.4461,-99.1533],[19.4418,-99.1548],[19.4237,-99.1629]],[[19.4968,-99.1197],[19.4986,-99.1194],[19.4988,-99.119],[19.4984,-99.1188],[19.493,-99.1201],[19.4903,-99.1212],[19.4582,-99.1474],[19.455,-99.1515],[19.4458,-99.1533],[19.423,-99.1631],[19.3475,-99.1875],[19.3407,-99.19]],[[19.4464,-99.1521],[19.4462,-99.1532],[19.4418,-99.1548],[19.423,-99.1631],[19.3514,-99.1862],[19.3394,-99.1904],[19.2963,-99.1851],[19.2954,-99.1843],[19.291,-99.1739],[19.2901,-99.1738],[19.2853,-99.1757],[19.2837,-99.1755],[19.2822,-99.1743],[19.2796,-99.1684],[19.279,-99.1679],[19.2786,-99.1688],[19.2793,-99.1691]]]},{"l":"02","p":[[[19.389,-99.0598],[19.3975,-99.0581],[19.3911,-99.0468],[19.3906,-99.0471],[19.3909,-99.0484],[19.385,-99.052],[19.3897,-99.0592],[19.3897,-99.0597],[19.389,-99.0598]],[[19.389,-99.0598],[19.3827,-99.0609],[19.3835,-99.0658]],[[19.3835,-99.0658],[19.3878,-99.0747],[19.3843,-99.0758],[19.3845,-99.0764]],[[19.3845,-99.0764],[19.3837,-99.0748],[19.3844,-99.0722],[19.3835,-99.0658]],[[19.3845,-99.0764],[19.3957,-99.0931],[19.3964,-99.0946],[19.3984,-99.1123],[19.3978,-99.1292],[19.3968,-99.1309],[19.3937,-99.1318],[19.3933,-99.1327],[19.3952,-99.1462],[19.3963,-99.161],[19.3971,-99.1649],[19.3984,-99.1672],[19.4035,-99.1689],[19.4035,-99.1712],[19.4076,-99.1835]],[[19.4076,-99.1835],[19.4079,-99.1847],[19.4077,-99.1896],[19.402,-99.1867],[19.4021,-99.1872],[19.4076,-99.1845],[19.4076,-99.1835]],[[19.389,-99.0598],[19.3975,-99.0581],[19.3911,-99.0468],[19.3906,-99.0471],[19.3909,-99.0484],[19.385,-99.052],[19.3897,-99.0592],[19.3897,-99.0597],[19.389,-99.0598]],[[19.389,-99.0598],[19.3827,-99.0609],[19.3835,-99.0658]],[[19.3835,-99.0658],[19.3878,-99.0747],[19.3843,-99.0758],[19.3845,-99.0764]],[[19.3845,-99.0764],[19.3837,-99.0748],[19.3844,-99.0722],[19.3835,-99.0658]],[[19.3845,-99.0764],[19.3957,-99.0931],[19.3964,-99.0949],[19.3984,-99.1123],[19.3978,-99.1292],[19.3968,-99.1309],[19.3937,-99.1318],[19.3933,-99.1327],[19.3952,-99.1458],[19.3959,-99.1558],[19.397,-99.1559]],[[19.389,-99.0598],[19.3975,-99.0581],[19.3911,-99.0468],[19.3906,-99.0471],[19.3909,-99.0484],[19.385,-99.052],[19.3897,-99.0592],[19.3897,-99.0597],[19.389,-99.0598]],[[19.389,-99.0598],[19.3827,-99.0609],[19.3835,-99.0658]],[[19.3835,-99.0658],[19.3878,-99.0747],[19.3843,-99.0758],[19.3845,-99.0764]],[[19.3845,-99.0764],[19.3837,-99.0748],[19.3844,-99.0722],[19.3835,-99.0658]],[[19.3845,-99.0764],[19.3957,-99.0931],[19.3964,-99.0946],[19.3984,-99.1123],[19.3978,-99.1292],[19.397,-99.1308],[19.3937,-99.1318],[19.3933,-99.1329],[19.3952,-99.1462],[19.3963,-99.161],[19.3971,-99.1648],[19.3986,-99.1673],[19.4031,-99.1686],[19.4036,-99.1691],[19.3857,-99.1751]]]},{"l":"03","p":[[[19.5286,-99.1701],[19.5222,-99.1651],[19.5182,-99.163],[19.4656,-99.143],[19.4644,-99.1433],[19.4626,-99.1447],[19.4606,-99.1439],[19.44,-99.1487],[19.4379,-99.149],[19.4373,-99.147],[19.4281,-99.1487]],[[19.4281,-99.1487],[19.427,-99.1491],[19.4258,-99.1535],[19.425,-99.1537]],[[19.425,-99.1537],[19.4258,-99.1534],[19.4256,-99.1494],[19.4281,-99.1487]],[[19.425,-99.1537],[19.3876,-99.1568],[19.3716,-99.161]],[[19.5286,-99.1701],[19.5222,-99.1651],[19.5182,-99.163],[19.4656,-99.143],[19.4644,-99.1433],[19.4626,-99.1447],[19.4606,-99.1439],[19.44,-99.1487],[19.4379,-99.149],[19.4373,-99.147],[19.4281,-99.1487]],[[19.5286,-99.1701],[19.5222,-99.1651],[19.5182,-99.163],[19.468,-99.1438]],[[19.468,-99.1438],[19.466,-99.143],[19.466,-99.1417],[19.4675,-99.1403],[19.4677,-99.1406],[19.467,-99.1413],[19.4673,-99.1434],[19.468,-99.1438]],[[19.5286,-99.1701],[19.5222,-99.1651],[19.5182,-99.163],[19.4656,-99.143],[19.4644,-99.1433],[19.4626,-99.1447],[19.4606,-99.1439],[19.4454,-99.1474],[19.446,-99.1512],[19.4457,-99.1523]],[[19.4932,-99.1211],[19.4921,-99.1203],[19.4904,-99.121],[19.4581,-99.1474],[19.4572,-99.1486],[19.4562,-99.1449],[19.438,-99.149],[19.4372,-99.1469],[19.4255,-99.1492],[19.4257,-99.1536],[19.3909,-99.1564],[19.3859,-99.1572],[19.3716,-99.161]],[[19.3716,-99.1611],[19.3886,-99.1568],[19.4257,-99.1537],[19.4272,-99.1489],[19.4373,-99.147],[19.438,-99.1491],[19.4561,-99.145],[19.4573,-99.1488],[19.4583,-99.1475],[19.4905,-99.1212],[19.4922,-99.1205],[19.4932,-99.1212]]]},{"l":"05","p":[[[19.5071,-99.0859],[19.4515,-99.1093],[19.4503,-99.1102],[19.4407,-99.1137],[19.4331,-99.1151],[19.4297,-99.1153],[19.4279,-99.1119],[19.4269,-99.1113],[19.4038,-99.1137],[19.3956,-99.1133],[19.3926,-99.1137],[19.3896,-99.1124],[19.3819,-99.1107],[19.3744,-99.1078],[19.3724,-99.1077],[19.3562,-99.1114],[19.3538,-99.1107],[19.35,-99.1109],[19.3392,-99.113],[19.3222,-99.1141],[19.3141,-99.1106],[19.3127,-99.1105],[19.3005,-99.1137],[19.2938,-99.1148],[19.2899,-99.1153],[19.2887,-99.1142],[19.2779,-99.1178],[19.2742,-99.1195],[19.2734,-99.1208]],[[19.4308,-99.1153],[19.4406,-99.1137],[19.4503,-99.1102],[19.4515,-99.1093],[19.5071,-99.0859]],[[19.4308,-99.1153],[19.4296,-99.1152],[19.4279,-99.1119],[19.4269,-99.1113],[19.4038,-99.1137],[19.3956,-99.1133],[19.3926,-99.1137],[19.3896,-99.1124],[19.3819,-99.1107],[19.3767,-99.1086],[19.3728,-99.1077],[19.3562,-99.1114],[19.3538,-99.1107],[19.35,-99.1109],[19.3392,-99.113],[19.3222,-99.1141],[19.3141,-99.1106],[19.3118,-99.1107]]]},{"l":"06","p":[[[19.5067,-99.1997],[19.5115,-99.1981],[19.5116,-99.1954],[19.5108,-99.192],[19.5104,-99.1916],[19.5059,-99.1908],[19.5051,-99.19],[19.5039,-99.1832],[19.5027,-99.1794],[19.4989,-99.1715],[19.4907,-99.1335],[19.4854,-99.1196]],[[19.4854,-99.1196],[19.4851,-99.1188],[19.4842,-99.1189],[19.4825,-99.1144],[19.4841,-99.1137],[19.4839,-99.1123]],[[19.4839,-99.1123],[19.4844,-99.1138],[19.4874,-99.1128],[19.4888,-99.1171],[19.4853,-99.1186],[19.4854,-99.1196]],[[19.4839,-99.1123],[19.4827,-99.107],[19.4757,-99.0895],[19.469,-99.0851],[19.4679,-99.0831],[19.4674,-99.081]],[[19.4674,-99.081],[19.4668,-99.0785],[19.4669,-99.0758],[19.4662,-99.0723],[19.4738,-99.0702],[19.474,-99.0697],[19.4731,-99.0687]],[[19.4731,-99.0687],[19.4808,-99.0763],[19.4809,-99.0769],[19.4758,-99.079],[19.4675,-99.0803],[19.4674,-99.081]],[[19.4731,-99.0687],[19.4649,-99.0595]],[[19.5067,-99.1997],[19.5115,-99.1981],[19.5116,-99.1954],[19.5108,-99.192],[19.5104,-99.1916],[19.5059,-99.1908],[19.5051,-99.19],[19.5039,-99.1832],[19.5027,-99.1794],[19.4989,-99.1715],[19.4904,-99.1327]]]},{"l":"02 y 03","p":[[[19.4313,-99.148],[19.4322,-99.148],[19.4325,-99.1509],[19.4317,-99.1511],[19.4312,-99.1481],[19.4271,-99.149],[19.4257,-99.1537],[19.3959,-99.156],[19.3952,-99.1462],[19.3932,-99.1328],[19.3937,-99.1317],[19.3968,-99.1309],[19.3978,-99.1292],[19.3983,-99.1122],[19.3964,-99.095],[19.3956,-99.0929],[19.3837,-99.075],[19.3844,-99.0722],[19.3836,-99.0669],[19.3876,-99.0743]],[[19.3876,-99.0743],[19.3878,-99.0749],[19.3843,-99.076],[19.3963,-99.0942],[19.3984,-99.112],[19.3978,-99.1292],[19.3968,-99.1309],[19.3938,-99.1318],[19.3933,-99.1325],[19.3952,-99.1461],[19.3959,-99.1559],[19.4256,-99.1536],[19.4255,-99.1492],[19.4313,-99.148]]]}]};
+// Cablebús (trazo aproximado entre estaciones)
+const CABLEBUS=[
+  [[19.4953,-99.1195],[19.5045,-99.1240],[19.5150,-99.1290],[19.5290,-99.1370],[19.5425,-99.1440]],   // L1 Indios Verdes – Cuautepec
+  [[19.5290,-99.1370],[19.5430,-99.1365],[19.5579,-99.1356]],                                         // L1 ramal Tlalpexco
+  [[19.3460,-99.0638],[19.3400,-99.0560],[19.3330,-99.0450],[19.3285,-99.0330],[19.3320,-99.0180],[19.3440,-99.0050],[19.3603,-98.9952]], // L2 Constitución de 1917 – Santa Marta
+  [[19.4120,-99.1915],[19.4080,-99.2010],[19.3990,-99.2130],[19.3880,-99.2240],[19.3786,-99.2316]]    // L3 Los Pinos – Vasco de Quiroga
+];
+const AICM=[[19.4255,-99.0905],[19.4445,-99.0570]];   // pistas del aeropuerto (AICM)
+function distPolyKm(p, pts){
+  let m=Infinity; const k=Math.cos(p.lat*Math.PI/180);
+  for(let i=1;i<pts.length;i++){
+    const [a1,o1]=pts[i-1], [a2,o2]=pts[i];
+    const ax=(o1-p.lon)*k, ay=a1-p.lat, bx=(o2-p.lon)*k, by=a2-p.lat, dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy;
+    let t=L? -(ax*dx+ay*dy)/L : 0; t=Math.max(0,Math.min(1,t));
+    m=Math.min(m, Math.hypot(ax+t*dx, ay+t*dy)*111.32);
+  }
+  return m;
+}
+const nombreCalle=()=> sinAcentos((dirActual&&dirActual.calle)||'');
+const RX_PRINCIPAL=/\b(avenida|av|calzada|calz|eje|periferico|anillo|circuito|viaducto|boulevard|bulevar|blvd|carretera|autopista|paseo|insurgentes|reforma|churubusco|division del norte|ermita|zaragoza|aztecas|tlahuac|revolucion|patriotismo|constituyentes|cuitlahuac|camarones|lazaro cardenas|congreso de la union|consulado|gran canal|marina nacional|ejercito nacional|universidad|miramontes|tasquena|taxquena|tlalpan|xochimilco|picacho|san antonio abad|chapultepec)\b/;
+function esCalleSecundaria(){ const c=nombreCalle(); return !!c && !RX_PRINCIPAL.test(c); }
+const esPeriferico=()=> /perif|adolfo lopez mateos|canal de garay/.test(nombreCalle());
+// Corredores del Trolebús por nombre de vialidad (líneas 0 a 14)
+const RX_TROLE=/eje central|lazaro cardenas|eje 2 sur|eje 2-?a sur|eje 7 sur|eje 7-?a sur|felix cuevas|extremadura|municipio libre|eje 8 sur|ermita|popocatepetl|eje 3 oriente|francisco del paso|calzada de la viga|churubusco|plutarco elias calles|patriotismo|revolucion|juanacatlan|circuito interior|eje 3 norte|cuitlahuac|aztecas|tlahuac|zaragoza|mexico-puebla|mexico puebla|wilfrido massieu|instituto politecnico|eje 5 sur|eje 6 sur|tasquena|taxquena|del iman|puerto aereo|santa ana|delfin madrigal/;
+function enTroleElevado(p){ return /ermita|eje 8 sur/.test(nombreCalle()) && p.lat>19.335 && p.lat<19.362 && p.lon>-99.097 && p.lon<-99.060; }
+let ctxT={ts:-1,v:{}};
+function contextoTransporte(){
+  const p=ultimaPos; if(!p) return {};
+  if(ctxT.ts===p.ts && ctxT.c===nombreCalle()) return ctxT.v;
+  const v={}; const sec=esCalleSecundaria();
+  for(const m of TRANSPORTE.metro){ if(distPolyKm(p,m.p)<0.2){ v.metro=m.t; v.linea=m.l; break; } }
+  if(!sec) for(const m of TRANSPORTE.mb){ if(m.p.some(seg=>distPolyKm(p,seg)<0.07)){ v.metrobus=m.l; break; } }
+  v.cablebus = CABLEBUS.some(c=>distPolyKm(p,c)<0.45);
+  v.aero = distPolyKm(p,AICM)<1.6;
+  v.trole = !sec && RX_TROLE.test(nombreCalle());
+  v.troleElev = enTroleElevado(p);
+  v.perif = esPeriferico();
+  ctxT={ts:p.ts, c:nombreCalle(), v}; return v;
+}
+const horaPicoPerif=()=>{ const h=new Date().getHours(); return (h>=6&&h<11)||(h>=12&&h<21); };
+function tiraViaducto(noche){
+  const W=240, H=78, c=noche?'#5d5f66':'#b9b6ad', o=noche?'#45474d':'#9c998f';
+  const g=`<rect x="0" y="0" width="${W}" height="9" fill="${c}"/><rect x="0" y="9" width="${W}" height="3" fill="${o}"/>
+    <rect x="0" y="0" width="${W}" height="1.5" fill="${noche?'#777':'#dedbd2'}"/>
+    ${[30,150].map(x=>`<path d="M${x-14} 12 L${x+14} 12 L${x+6} 20 L${x+6} ${H} L${x-6} ${H} L${x-6} 20Z" fill="${c}"/><rect x="${x-6}" y="20" width="3" height="${H-20}" fill="${o}"/>`).join('')}`;
+  return svgURL(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${g}</svg>`);
+}
+function metrobusSVG(){
+  const ven=(x,w)=>`<rect class="ven" x="${x}" y="9" width="${w}" height="12" rx="1.5" fill="#22323f"/>`;
+  return `<svg viewBox="0 0 176 46" width="176" height="46" aria-hidden="true">
+    <rect x="2" y="5" width="84" height="33" rx="4" fill="#c62828"/><rect x="90" y="5" width="84" height="33" rx="5" fill="#c62828"/>
+    <rect x="85" y="8" width="6" height="28" fill="#5a1414"/>
+    ${ven(6,22)}${ven(30,22)}${ven(62,20)}${ven(94,20)}${ven(118,22)}
+    <rect x="54" y="9" width="7" height="27" fill="#3a1010"/><rect x="142" y="9" width="7" height="27" fill="#3a1010"/>
+    <path d="M152 8 L168 8 Q173 9 173 14 L173 23 L152 23Z" fill="#22323f"/><rect x="152" y="5.5" width="20" height="3" fill="#ffb000"/>
+    <rect x="2" y="30" width="172" height="2" fill="#f2f2f2"/>
+    <rect class="fv" x="170" y="31" width="4" height="3"/><rect x="2" y="27" width="2" height="5" fill="#ff3b2b"/>
+    ${rueda(18,39,6)}${rueda(70,39,6)}${rueda(106,39,6)}${rueda(158,39,6)}
+  </svg>`;
+}
+function gondolaSVG(i){
+  const c=['#d93636','#1e88e5','#f2a12e'][i%3];
+  return `<svg viewBox="0 0 16 20" width="16" height="20" aria-hidden="true"><line x1="8" y1="0" x2="8" y2="6" stroke="#333" stroke-width="1.2"/>
+    <rect x="1" y="6" width="14" height="13" rx="3" fill="#f2f2ee"/><rect class="vg" x="3" y="8" width="10" height="5" rx="1" fill="#2b3a4a"/><rect x="1" y="15" width="14" height="2" fill="${c}"/></svg>`;
+}
+function avionSVG(){
+  return `<svg viewBox="0 0 70 22" width="70" height="22" aria-hidden="true">
+    <path d="M4 12 Q2 9 6 9 L56 9 Q66 9 69 13 Q66 16 56 16 L8 16 Q4 16 4 12Z" fill="#f4f6f8"/>
+    <path d="M6 9 L1 1 L7 1 L16 9Z" fill="#2d6cb5"/><path d="M28 13 L40 13 L30 21 L25 21Z" fill="#c9d2dc"/>
+    <path d="M60 10.5 L66 12 L60 12Z" fill="#22323f"/>${Array.from({length:9},(_,k)=>`<circle cx="${18+k*4}" cy="11.4" r=".9" fill="#5a6b7c"/>`).join('')}</svg>`;
+}
+function torreSVG(){
+  return `<svg viewBox="0 0 30 84" width="30" height="84" aria-hidden="true"><rect x="11" y="24" width="8" height="60" fill="#c9c6bd"/>
+    <path d="M3 22 L27 22 L24 10 L6 10Z" fill="#5b6672"/><rect class="vt" x="6" y="12" width="18" height="7" fill="#9fd3ff"/><rect x="5" y="6" width="20" height="4" fill="#d5d2c9"/>
+    <line x1="15" y1="0" x2="15" y2="6" stroke="#555" stroke-width="1.2"/><circle cx="15" cy="1" r="1.4" fill="#e53935"/></svg>`;
+}
 /* =================== Tráfico: vehículos alrededor del coche (diseños genéricos, sin marcas) =================== */
 const rueda=(cx,cy,r,rin='#9a9a9a')=>`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#1b1b1b"/><circle cx="${cx}" cy="${cy}" r="${(r*.45).toFixed(1)}" fill="${rin}"/>`;
 const VEH={
@@ -2435,6 +2607,15 @@ const VEH={
     <path d="M41 15 l3 -1.6 l.8 2z" fill="#e8338f"/>
     <text x="27" y="21.6" text-anchor="middle" font-family="Arial,sans-serif" font-size="4.6" font-weight="900" fill="#111">TAXI</text>
     <rect class="fv" x="54" y="17" width="3" height="2"/><rect x="2" y="17" width="2" height="3" fill="#d42"/>`}; },
+  trailer:(c='#1f5fa8',caja='#ecebe7')=>({w:150,h:51,svg:`<rect x="2" y="6" width="104" height="34" rx="2" fill="${caja}"/><rect x="2" y="30" width="104" height="3" fill="#c0392b"/>
+    <rect x="2" y="40" width="104" height="3" fill="#333"/><rect x="72" y="42" width="3" height="7" fill="#444"/>
+    <path d="M108 43 L108 16 Q108 12 112 12 L130 12 Q134 12 136 16 L146 28 Q148 30 148 33 L148 43Z" fill="${c}"/>
+    <path d="M128 15 L134 15 L142 27 L128 27Z" fill="#2b3a4a"/><rect x="111" y="0" width="3" height="13" fill="#8a8a8a"/><rect x="117" y="34" width="11" height="6" rx="1" fill="#c4c4c4"/>
+    <rect class="fv" x="145" y="33" width="3" height="3"/><rect x="2" y="34" width="2" height="5" fill="#d42"/>${rueda(14,45,5.5)}${rueda(27,45,5.5)}${rueda(122,45,5.5)}${rueda(140,45,5.5)}`}),
+  torton:(caja='#f2f2ee',c='#c0392b')=>({w:96,h:44,svg:`<rect x="2" y="2" width="64" height="32" rx="2" fill="${caja}"/><rect x="2" y="24" width="64" height="3" fill="#2f7d32"/>
+    <path d="M66 36 L66 12 Q66 9 70 9 L80 9 L90 20 Q94 21 94 25 L94 36Z" fill="${c}"/><path d="M71 12 L79 12 L87 21 L71 21Z" fill="#2b3a4a"/>
+    <rect x="2" y="34" width="92" height="3" fill="#333"/><rect class="fv" x="91" y="27" width="3" height="3"/><rect x="2" y="28" width="2" height="5" fill="#d42"/>
+    ${rueda(14,38,6)}${rueda(28,38,6)}${rueda(82,38,6)}`}),
   ejecutivo:(c='#15161a')=>({w:64,h:24,svg:`<path d="M2 18 Q2 13 8 12 L18 11 L26 4 Q28 3 31 3 L44 3 Q47 3 49 5 L56 11 Q62 12 62 16 L62 19 Q62 20 60 20 L4 20 Q2 20 2 18Z" fill="${c}"/>
     <rect x="6" y="14" width="52" height="1" fill="#c9ced6"/><path d="M21 11 L27 5 L37 5 L37 11Z" fill="#3b4a5c"/><path d="M39 5 L45 5 Q47 5 48 7 L52 11 L39 11Z" fill="#3b4a5c"/>
     <rect class="fv" x="58" y="13" width="4" height="1.6"/><rect x="2" y="12" width="3" height="1.6" fill="#ff2a2a"/>${rueda(15,19,5,'#cfd4da')}${rueda(50,19,5,'#cfd4da')}`}),
@@ -2446,10 +2627,11 @@ const VEH={
     <rect class="fv" x="55" y="10" width="4" height="1.6"/><rect x="2" y="10" width="3" height="1.5" fill="#ff2a2a"/>${rueda(14,15,5,'#d9dde2')}${rueda(47,15,5,'#d9dde2')}`})
 };
 const FLOTA={
-  popular:[()=>VEH.micro(),()=>VEH.trole(),()=>VEH.vidrios(),()=>VEH.tianguis(),()=>VEH.micro(),()=>VEH.sedan('#2d6cb5'),()=>VEH.sedan('#8c2a24')],
+  popular:[()=>VEH.micro(),()=>VEH.vidrios(),()=>VEH.tianguis(),()=>VEH.micro(),()=>VEH.sedan('#2d6cb5'),()=>VEH.sedan('#8c2a24')],
   lujo:[()=>VEH.ejecutivo(),()=>VEH.suv('#3a3d42'),()=>VEH.deportivo('#c21818'),()=>VEH.suv('#f2f2ef'),()=>VEH.ejecutivo('#26364a'),()=>VEH.deportivo('#e8e8e8'),()=>VEH.suv('#121316')]
 };
 FLOTA.mixto=[...FLOTA.popular.slice(0,4),...FLOTA.lujo.slice(0,4)];
+const PESADOS=[()=>VEH.trailer(),()=>VEH.torton(),()=>VEH.trailer('#b71c1c','#f4f1e8'),()=>VEH.torton('#e8e2d0','#1f5fa8'),()=>VEH.trailer('#f2f2f2','#d9dcd6')];
 function zonaTrafico(){
   const a=sinAcentos((dirActual&&dirActual.alcaldia)||(ultimaPos?alcaldiaDe(ultimaPos):''));
   if(/tlahuac|iztapalapa|iztacalco|venustiano/.test(a)) return 'popular';
@@ -2461,6 +2643,8 @@ function nivelTrafico(det){
   if(window.__trafico) return tNivel=window.__trafico;            // solo para pruebas
   const j=jornadaActiva(), va=j&&j.viajeActivo;
   if(gpsState!=='on' || det>=120) { tCambio=0; return tNivel='ligero'; }   // sin GPS o estacionado
+  const h=new Date().getHours();
+  if(h>=23 || h<6 || esCalleSecundaria()) { tCambio=0; return tNivel='ligero'; }  // de noche y en calles secundarias
   let pes;
   if(va && va.traficoActual) pes=true;
   else { const v=velocidadVentana(); if(v==null) return tNivel; pes=v<TRAF.vel; }
@@ -2469,10 +2653,14 @@ function nivelTrafico(det){
   else { if(!tCambio) tCambio=Date.now(); if(Date.now()-tCambio>=20000 || (va&&va.traficoActual)){ tNivel=want; tCambio=0; } }
   return tNivel;
 }
-function armarTrafico(e, nivel, zona){
+function armarTrafico(e, nivel, zona, ctx={}){
   const t=e.querySelector('#escTraf'); if(!t) return;
-  const clave=nivel+'|'+zona; if(clave===tClave && t.childElementCount) return; tClave=clave;
-  const pool=FLOTA[zona], usados=new Set();
+  const pesados = ctx.perif && horaPicoPerif();
+  const clave=nivel+'|'+zona+'|'+(ctx.trole?'T':'')+(pesados?'P':''); if(clave===tClave && t.childElementCount) return; tClave=clave;
+  let pool=[...FLOTA[zona]];
+  if(ctx.trole) pool.push(()=>VEH.trole(),()=>VEH.trole());                 // solo en corredores del trolebús
+  if(pesados) pool=[...pool, ...PESADOS, ...PESADOS];                         // Periférico en horas de alto tráfico
+  const usados=new Set();
   const toma=()=>{ let i, n=0; do{ i=Math.floor(Math.random()*pool.length); n++; }while(usados.has(i) && n<20); usados.add(i); return pool[i](); };
   const filas = nivel==='pesado'
     ? [{cls:'vc', atras:2, ade:3, gap:7, off:0}, {cls:'vl', atras:2, ade:3, gap:10, off:-22}]
@@ -2701,6 +2889,7 @@ async function flujoTerminarViaje(j){
     extra:v=> v>va.kmIni? `<div class="kpi">Distancia del viaje: <b>${fmtKm(v-va.kmIni)}</b></div>`:'',
     validar:v=>v<=va.kmIni?'Debe ser mayor a '+fmtNum(va.kmIni)+' km':null}); if(!a) return;
   const k=a.valor-va.kmIni;
+  const taxi=taxiFinal(va, finTs, k);
   const b=await askNumber({paso:2,total:3,titulo:`Viaje #${n}: autonomía al terminar`,ayuda: va.autIni!=null? `Autonomía al iniciar el viaje: ${fmtNum(va.autIni)} km`:'Km de autonomía que marca el tablero',unidad:'km',opcional:true,placeholder:'Ej. 80',
     extra:v=>{ if(va.autIni==null||!(va.autIni>v)) return ''; const c=va.autIni-v, r=k/c*100; return `<div class="kpi">Consumió <b>${fmtKm(c)}</b> de autonomía por ${fmtKm(k)} reales → rendimiento <b class="${colorRend(r)}">${fmtNum(r,1)}%</b></div>`; }}); if(!b) return;
   const af=b.omitido?null:b.valor;
@@ -2712,16 +2901,17 @@ async function flujoTerminarViaje(j){
     onModo:(nuevo,v,viejo)=>{ if(!isFinite(v)||nuevo===viejo) return null; const p=pagoDe(v,viejo); return nuevo==='acum'? p+prevSum : p; },
     extra:(v,m)=>{ const p=pagoDe(v,m); return (m==='acum'?`<div class="np-help" style="margin-bottom:6px">Viajes anteriores ${fmt$(prevSum)} → <b class="sec">este viaje ${isFinite(p)?fmt$(p):'—'}</b></div>`:'')
       + `<div class="kpi">${previewViaje(k,p,va.autIni,af??NaN)}</div>`
+      + `<div class="kpi" style="margin-top:8px">🚕 Como taxi de la CDMX habrías cobrado <b>${fmt$(taxi)}</b>${isFinite(p)&&p>0? ' · '+difTaxi(p,taxi):''}</div>`
       + (eta? `<div class="kpi" style="margin-top:8px">⏱ ${fmtCrono(finTs-va.inicio)} de ${va.minEst} min estimados · <b class="${eta.cls}">${eta.icon} ${eta.msg}</b></div>`:''); },
     validar:(v,m)=> pagoDe(v,m)<0? 'El acumulado no puede ser menor que tus viajes anteriores ('+fmt$(prevSum)+')' : null,
     okText:'✔ Guardar viaje'}); if(!c) return;
   const p=pagoDe(c.valor,c.modo);
   if(va.traficoActual) cerrarTramoTrafico(j, finTs);
-  const trip={id:va.id, inicio:va.inicio, fin:finTs, trafico:va.trafico||[], distEst:va.distEst??null, minEst:va.minEst??null, kmIni:va.kmIni, kmFin:a.valor, autIni:va.autIni??null, autFin:af, pago:r2(p), acum: c.modo==='acum'? c.valor : null, gpsKm:va.gpsKm||0, coordIni:va.coordIni||null, coordFin:null};
+  const trip={id:va.id, inicio:va.inicio, fin:finTs, trafico:va.trafico||[], distEst:va.distEst??null, minEst:va.minEst??null, kmIni:va.kmIni, kmFin:a.valor, autIni:va.autIni??null, autFin:af, pago:r2(p), acum: c.modo==='acum'? c.valor : null, gpsKm:va.gpsKm||0, coordIni:va.coordIni||null, coordFin:null, taxi};
   trip.ruta = simplificarRuta(va.ruta||[]);
   j.libreActual = trip.ruta.length? [trip.ruta[trip.ruta.length-1]] : [];
   j.viajes.push(trip);
-  recalcPagos(j); j.viajeActivo=null; save(j); toast('Viaje #'+n+': '+fmt$(p)+' · '+fmt$(p/k)+'/km · duró '+fmtCrono(finTs-va.inicio)+(eta?' · '+eta.msg:'')); render();
+  recalcPagos(j); j.viajeActivo=null; save(j); toast('Viaje #'+n+': '+fmt$(p)+' · como taxi '+fmt$(taxi)+' · '+fmt$(p/k)+'/km · duró '+fmtCrono(finTs-va.inicio)+(eta?' · '+eta.msg:'')); render();
   ubiFin.then(cc=>{ if(cc){ const t=j.viajes.find(x=>x.id===trip.id); if(t){ t.coordFin=cc; const pf=[+cc.lat.toFixed(5),+cc.lon.toFixed(5)]; if(t.ruta && t.ruta.length) t.ruta.push(pf); save(j); render(); } } });
 }
 async function flujoCarga(j){
@@ -2800,6 +2990,7 @@ function renderJornada(){
     <div class="card best">
 
       <div class="muted">Viaje #${j.viajes.length+1} · desde ${fmtHora(va.inicio)} · odómetro ${fmtNum(va.kmIni)} km${va.autIni!=null?' · autonomía '+fmtNum(va.autIni)+' km':''}${va.gpsKm? ' · GPS '+fmtKm(va.gpsKm):''}</div>
+      <div id="taxiSlot">${taximetroHTML(va)}</div>
       ${escenaSlotHTML()}
       <div id="trafLive">${va.traficoActual? tramoHTML(va.traficoActual,true):''}</div>
       ${(va.trafico||[]).map(t=>tramoHTML(t)).join('')}
@@ -2903,6 +3094,7 @@ function tripRow(t, rank, editable, maxRate, showDate){
       ${t.origen||t.destino? `<div class="sec" style="font-size:13px">📍 ${esc(t.origen||'—')} → ${esc(t.destino||'—')}</div>`:''}
       <div class="muted">Km ${fmtNum(t.kmIni)} → ${fmtNum(t.kmFin)}${t.acum!=null?' · acumulado '+fmt$0(t.acum):''}</div>
       ${t.comentario? `<div class="muted" style="font-style:italic">💬 ${esc(t.comentario)}</div>`:''}
+      ${t.taxi!=null? `<div class="muted">🚕 Como taxi: <b>${fmt$(t.taxi)}</b> · ${difTaxi(t.pago||0,t.taxi)}</div>`:''}
       ${(()=>{ const en=tripEnergia(t); return t.autIni!=null||t.autFin!=null? `<div class="muted">🔋 Autonomía ${t.autIni??'—'} → ${t.autFin??'—'} km${en?` · consumió ${fmtKm(en.consumo)} · <b class="${colorRend(en.rend)}">${fmtNum(en.rend,0)}%</b>`:''}</div>`:''; })()}
       <div class="muted">${showDate? fmtFecha(fechaLocal(t.inicio)).replace(/ \d{4}$/,'')+' · ':''}${fmtHora(t.inicio)}–${fmtHora(t.fin)} · ${fmtDur(dur)}${dur>=120000? ' · '+fmt$0(t.pago/(dur/3600000))+'/h · '+fmtNum(velocidad(k,dur),0)+' km/h':''}</div>
       ${tramosDe(t).map(x=>tramoHTML(x)).join('')}
