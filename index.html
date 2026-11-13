@@ -863,6 +863,26 @@ body.sin-scroll{overflow:hidden}
 .escena.noche .peaton svg{filter:brightness(.8)}
 
 
+
+/* ---- Carril confinado del Metrobús (líneas y confinadores amarillos) ---- */
+.escena .confi{display:none;position:absolute;left:0;right:0;top:4px;height:6px;
+  background:linear-gradient(#f2c200,#f2c200) 0 0/100% 2px no-repeat, repeating-linear-gradient(90deg,#f2c200 0 14px,#2b2b2b 14px 16px,transparent 16px 34px) 0 3px/100% 3px repeat-x;
+  animation:mConfi .7s linear infinite}
+.escena.metrobus .confi{display:block}
+.escena.metrobus .raya{top:22px}
+@keyframes mConfi{from{background-position:0 0,0 3px}to{background-position:0 0,-34px 3px}}
+.escena.parado .confi{animation-play-state:paused}
+/* ---- Metro cada 8 s en Francisco del Paso y Troncoso ---- */
+.escena.tlalpan.metro8 .metro{animation:metroPasa8 8s linear infinite}
+@keyframes metroPasa8{0%{left:-640px}75%{left:110%}100%{left:110%}}
+/* ---- Estación Constitución de 1917 ---- */
+.escena .estc{display:none;position:absolute;right:4%;bottom:46px;z-index:1}
+.escena.estacion .estc{display:block}
+.escena.estacion .viad{display:none}
+.escena.estacion .troe{display:none}
+.escena .estc svg{display:block;width:min(400px,92%);height:auto}
+.escena.noche .estc svg{filter:brightness(.7)}
+.escena.noche .estc .ve{fill:#ffe08a}
 /* ---- Metro elevado / Trolebús elevado (viaducto) ---- */
 .escena .viad{display:none;bottom:46px;height:78px;animation:mVd 5s linear infinite;z-index:0}
 .escena.dia .viad{background-image:var(--vd-d)} .escena.noche .viad{background-image:var(--vd-n)}
@@ -2390,11 +2410,12 @@ function escenaHTML(){
     <div class="capa cerca"></div>
     <div class="capa via"></div>
     <div class="capa viad"></div>
+    <div class="estc" aria-hidden="true">${estacionConstitucionSVG()}</div>
     <div class="metro" aria-hidden="true">${metroSVG()}</div>
     <div class="troe" aria-hidden="true"><svg viewBox="0 0 132 74" width="132" height="74">${VEH.trole().svg}</svg></div>
     <div class="mbus" aria-hidden="true">${metrobusSVG()}</div>
     <div class="banqueta"></div>
-    <div class="calle"><div class="raya"></div></div>
+    <div class="calle"><div class="raya"></div><div class="confi"></div></div>
     <div class="cebra" id="escCebra" aria-hidden="true"><div class="rayas"></div>${PEATONES.map((c,i)=>`<div class="peaton" data-i="${i}">${peatonSVG(c)}</div>`).join('')}</div>
     <div class="flujo" id="escTraf" aria-hidden="true"></div>
     <div class="moto m1">${motoSVG('#c62828')}</div><div class="moto m2">${motoSVG('#1565c0')}</div>
@@ -2413,7 +2434,8 @@ function actualizarEscena(j){
   e.classList.toggle('noche',noche); e.classList.toggle('dia',!noche);
   const cx=contextoTransporte();
   const elevM = cx.metro==='e', elevT = !elevM && cx.troleElev;
-  const tl=enCalzadaTlalpan() || cx.metro==='s';
+  const tl=enCalzadaTlalpan() || cx.metro==='s' || cx.metro8;
+  e.classList.toggle('metro8', !!cx.metro8); e.classList.toggle('estacion', !!cx.estacion);
   e.classList.toggle('tlalpan', tl); e.classList.toggle('casa', !tl && enSalvadorAllende());
   e.classList.toggle('elevado', elevM||elevT); e.classList.toggle('elev-metro', elevM); e.classList.toggle('elev-trole', elevT);
   e.classList.toggle('metrobus', !!cx.metrobus); e.classList.toggle('cablebus', !!cx.cablebus); e.classList.toggle('aero', !!cx.aero);
@@ -2445,6 +2467,7 @@ function actualizarEscena(j){
   if(det>=10 && !llego) iniciarPeatones();
   if(det>=10 && !llego) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
   const ai=$('#avInfo'); if(ai && ai.dataset.h!==info){ ai.dataset.h=info; ai.innerHTML=info; }
+  if(cx.ermitaEste) acts+=`<button data-av="rr">📍 Estoy en Rafael Reyes (fin del Trolebús Elevado)</button>`;
   const ac=$('#avActs'); if(ac && ac.dataset.h!==acts){ ac.dataset.h=acts; ac.innerHTML=acts; }
   pintarLetrero();
 }
@@ -2510,7 +2533,27 @@ function esCalleSecundaria(){ const c=nombreCalle(); return !!c && !RX_PRINCIPAL
 const esPeriferico=()=> /perif|adolfo lopez mateos|canal de garay/.test(nombreCalle());
 // Corredores del Trolebús por nombre de vialidad (líneas 0 a 14)
 const RX_TROLE=/eje central|lazaro cardenas|eje 2 sur|eje 2-?a sur|eje 7 sur|eje 7-?a sur|felix cuevas|extremadura|municipio libre|eje 8 sur|ermita|popocatepetl|eje 3 oriente|francisco del paso|calzada de la viga|churubusco|plutarco elias calles|patriotismo|revolucion|juanacatlan|circuito interior|eje 3 norte|cuitlahuac|aztecas|tlahuac|zaragoza|mexico-puebla|mexico puebla|wilfrido massieu|instituto politecnico|eje 5 sur|eje 6 sur|tasquena|taxquena|del iman|puerto aereo|santa ana|delfin madrigal/;
-function enTroleElevado(p){ return /ermita|eje 8 sur/.test(nombreCalle()) && p.lat>19.335 && p.lat<19.362 && p.lon>-99.097 && p.lon<-99.060; }
+function enTroleElevado(p){ return /ermita|eje 8 sur/.test(nombreCalle()) && p.lat>19.335 && p.lat<19.365 && p.lon>=EST_CONSTITUCION.lon-0.0008 && p.lon<=limiteRafaelReyes(); }
+
+const EST_CONSTITUCION={lat:19.34597, lon:-99.06380};
+const L8_TRONCOSO=[[19.4041,-99.1207],[19.3983,-99.1135],[19.3883,-99.1121]];   // Santa Anita – Coyuya – Iztacalco (Eje 3 Ote)
+function enTroncosoMetro(p){ return /francisco del paso|eje 3 oriente/.test(nombreCalle()) && p.lat>19.385 && p.lat<19.404 && distPolyKm(p,L8_TRONCOSO)<0.25; }
+function limiteRafaelReyes(){ try{ const v=parseFloat(localStorage.getItem('rafaelReyesLon')); if(isFinite(v)) return v; }catch(e){} return -99.0455; }
+function estacionConstitucionSVG(){
+  const W=400, X=[]; for(let x=20;x<=360;x+=56) X.push(x);
+  const ven=(x)=>`<rect class="ve" x="${x}" y="55" width="10" height="8" rx="1" fill="#22323f"/>`;
+  let tren=''; for(let i=0;i<5;i++){ const x=14+i*74; tren+=`<rect x="${x}" y="50" width="71" height="24" rx="3" fill="#f07a1a"/><rect x="${x}" y="66" width="71" height="3" fill="#1f9d55"/>${ven(x+6)}${ven(x+22)}${ven(x+40)}${ven(x+56)}`; }
+  return `<svg viewBox="0 0 ${W} 100" width="${W}" height="100" aria-hidden="true">
+    ${[30,130,230,330].map(x=>`<rect x="${x}" y="82" width="10" height="18" fill="#9a978e"/>`).join('')}
+    <rect x="4" y="76" width="392" height="7" fill="#7d7a72"/>
+    <rect x="4" y="16" width="392" height="60" fill="#d9d6cc" opacity=".55"/>
+    ${tren}
+    <rect x="4" y="4" width="392" height="6" fill="#8a5a3c"/><rect x="4" y="10" width="392" height="7" fill="#ecebe5"/>
+    ${X.map(x=>`<path d="M${x} 17 L${x+56} 76 M${x+56} 17 L${x} 76" stroke="#f1f0ea" stroke-width="5" fill="none"/><rect x="${x-3}" y="17" width="6" height="59" fill="#e4e2da"/>`).join('')}
+    <rect x="${X[X.length-1]+53}" y="17" width="6" height="59" fill="#e4e2da"/>
+    <rect x="4" y="72" width="392" height="5" fill="#ecebe5"/>
+  </svg>`;
+}
 let ctxT={ts:-1,v:{}};
 function contextoTransporte(){
   const p=ultimaPos; if(!p) return {};
@@ -2523,6 +2566,9 @@ function contextoTransporte(){
   v.trole = !sec && RX_TROLE.test(nombreCalle());
   v.troleElev = enTroleElevado(p);
   v.perif = esPeriferico();
+  v.metro8 = enTroncosoMetro(p);
+  v.estacion = distPolyKm(p,[[EST_CONSTITUCION.lat,EST_CONSTITUCION.lon],[EST_CONSTITUCION.lat,EST_CONSTITUCION.lon+0.0001]])<0.2;
+  v.ermitaEste = /ermita|eje 8 sur/.test(nombreCalle()) && p.lon>EST_CONSTITUCION.lon-0.001 && p.lon<-98.99;
   ctxT={ts:p.ts, c:nombreCalle(), v}; return v;
 }
 const horaPicoPerif=()=>{ const h=new Date().getHours(); return (h>=6&&h<11)||(h>=12&&h<21); };
@@ -2746,7 +2792,9 @@ function nodoEscena(){
   if(ESCN) return ESCN;
   const d=document.createElement('div'); d.className='esc-box';
   d.innerHTML=`<div id="letrero"></div>${escenaHTML()}`;
-  d.addEventListener('click',ev=>{ const b=ev.target.closest('[data-av]'); const j=jornadaActiva(); if(b && j) accionAvance(j,b.dataset.av); });
+  d.addEventListener('click',ev=>{ const b=ev.target.closest('[data-av]'); if(!b) return;
+    if(b.dataset.av==='rr'){ if(ultimaPos){ try{ localStorage.setItem('rafaelReyesLon', String(ultimaPos.lon)); }catch(e){} ctxT.ts=-1; toast('Listo: el Trolebús Elevado se verá de Constitución de 1917 hasta aquí'); actualizarEscena(jornadaActiva()); } return; }
+    const j=jornadaActiva(); if(j) accionAvance(j,b.dataset.av); });
   ESCN=d; return d;
 }
 const escenaSlotHTML = () => `<div id="escenaSlot"></div><button class="btn sec2 small" data-pantalla="1">⛶ Ver a pantalla completa</button>`;
@@ -3236,9 +3284,16 @@ function baseOpts(extra={}){
 function mkChart(id,cfg){ if(charts[id]) charts[id].destroy(); const el=document.getElementById(id); if(!el||!window.Chart) return; charts[id]=new Chart(el,cfg); }
 const barDs=(data,color)=>({data,backgroundColor:color,borderRadius:{topLeft:4,topRight:4},borderSkipped:'bottom',maxBarThickness:28,borderColor:'#1a1a19',borderWidth:{left:1,right:1}});
 
+function taxiDeViaje(t){
+  if(t.taxi!=null) return t.taxi;
+  // viajes registrados antes del taxímetro: lo mínimo que marcaría con esos km y ese tiempo
+  const n=esNocheTaxi(t.inicio||0), tar=TAXI[n?'noche':'dia'], dur=Math.max(0,(t.fin||0)-(t.inicio||0))/1000;
+  const u=Math.max(tripKm(t)*1000/TAXI.m, dur/TAXI.s); return Math.round((tar.b+Math.floor(u+1e-9)*tar.inc)*100)/100;
+}
 function agregarPorDia(js){
   const m={};
-  js.forEach(j=>{ const s=statsJornada(j); const d=m[j.fecha]||(m[j.fecha]={fecha:j.fecha,g:0,km:0,kmV:0,ms:0,n:0,bKm:0,bAut:0,bNom:0});
+  js.forEach(j=>{ const s=statsJornada(j); const d=m[j.fecha]||(m[j.fecha]={fecha:j.fecha,g:0,tx:0,km:0,kmV:0,ms:0,n:0,bKm:0,bAut:0,bNom:0});
+    d.tx+=(j.viajes||[]).reduce((a,t)=>a+taxiDeViaje(t),0);
     d.g+=s.ganancia; d.km+=s.kmTotal; d.kmV+=s.kmViajes; d.ms+=s.ms; d.n+=s.n;
     if(s.batOk){ d.bKm+=s.kmTotal; d.bAut+=s.consumo/100; d.bNom+=s.nominal*s.consumo/100; } });
   Object.values(m).forEach(d=>{ d.rend = d.bAut>0? (d.bKm/d.bAut)/(d.bNom/d.bAut)*100 : null; d.autReal = d.bAut>0? d.bKm/d.bAut : null; });
@@ -3440,6 +3495,10 @@ function renderInforme(){
       <div class="muted" style="margin-top:8px">Mejor día de la semana en promedio: <b class="sec">${DIAS[mejorW]}</b> (${fmt$0(Math.max(...semProm))} por jornada)${mejorHora!=null?` · Mejor hora por $/km: <b class="sec">${mejorHora}:00–${mejorHora+1}:00</b>`:''}</div>
     </div>
     <div class="card"><h2>Ganancia por día</h2><div class="legend"><span style="--c:${C.s2}">Día más productivo</span></div><div class="chartbox"><canvas id="c1"></canvas></div></div>
+    <div class="card"><h2>Uber vs. taxímetro por día</h2>
+      <div class="legend"><span style="--c:${C.s1}">Ganancia Uber</span><span style="--c:#f2c200">Con taxímetro CDMX</span></div>
+      <div class="chartbox"><canvas id="c8"></canvas></div>
+      <div class="muted" style="margin-top:6px">En el periodo: Uber ${fmt$0(dias.reduce((a,d)=>a+d.g,0))} · taxímetro ${fmt$0(dias.reduce((a,d)=>a+d.tx,0))}. Los viajes registrados antes del taxímetro se estiman con sus km y su duración.</div></div>
     <div class="card"><h2>Costo por km por día</h2><div class="chartbox"><canvas id="c2"></canvas></div><div class="muted" style="margin-top:6px">Línea punteada: promedio de los $/km de cada día (${fmt$(P.porKm)}/km).</div></div>
     <div class="card"><h2>Km con pasajero vs. sin pasajero</h2>
       <div class="legend"><span style="--c:${C.s1}">Con pasajero</span><span style="--c:${C.s2}">Sin pasajero</span></div>
@@ -3449,8 +3508,8 @@ function renderInforme(){
     <div class="card"><h2>Distribución de viajes por $/km</h2><div class="chartbox"><canvas id="c6"></canvas></div></div>
     <div class="card"><h2>Horas trabajadas por día</h2><div class="chartbox"><canvas id="c7"></canvas></div></div>
     <div class="card"><details><summary>Ver tabla de datos por día</summary>
-      <table><thead><tr><th>Día</th><th>Ganancia</th><th>Km</th><th>$/km</th><th>Horas</th><th>$/h</th><th>🔋</th></tr></thead><tbody>
-      ${dias.slice().reverse().map(d=>`<tr><td>${etiquetaFecha(d.fecha)}</td><td>${fmt$0(d.g)}</td><td>${fmtNum(d.km,0)}</td><td>${fmt$(d.km?d.g/d.km:0)}</td><td>${fmtNum(d.ms/3600000)}</td><td>${fmt$0(d.ms?d.g/(d.ms/3600000):0)}</td><td>${d.rend!=null?fmtNum(d.rend,0)+'%':'—'}</td></tr>`).join('')}
+      <table><thead><tr><th>Día</th><th>Ganancia</th><th>🚕 Taxi</th><th>Km</th><th>$/km</th><th>Horas</th><th>$/h</th><th>🔋</th></tr></thead><tbody>
+      ${dias.slice().reverse().map(d=>`<tr><td>${etiquetaFecha(d.fecha)}</td><td>${fmt$0(d.g)}</td><td style="color:#f2c200;font-weight:700">${fmt$0(d.tx)}</td><td>${fmtNum(d.km,0)}</td><td>${fmt$(d.km?d.g/d.km:0)}</td><td>${fmtNum(d.ms/3600000)}</td><td>${fmt$0(d.ms?d.g/(d.ms/3600000):0)}</td><td>${d.rend!=null?fmtNum(d.rend,0)+'%':'—'}</td></tr>`).join('')}
       </tbody></table></details></div>`;
 
   const bsel=$('#barrilSel'); if(bsel) bsel.onchange=()=>{ $('#barrilBox').innerHTML=barrilSVG(jornadas[bsel.value]); };
@@ -3459,6 +3518,11 @@ function renderInforme(){
   const money={callbacks:{label:c=>' '+fmt$(c.parsed.y)}};
   mkChart('c1',{type:'bar',data:{labels:labs,datasets:[barDs(dias.map(d=>d.g),dias.map(d=>d===mejorDia?C.s2:C.s1))]},
     options:baseOpts({plugins:{legend:{display:false},tooltip:{...baseOpts().plugins.tooltip,callbacks:{label:c=>' Ganancia '+fmt$(c.parsed.y)}}}})});
+  const diaSem=f=>{ const [y,m,dd]=f.split('-').map(Number); return DIAS_C[new Date(y,m-1,dd).getDay()]+' '+dd; };
+  mkChart('c8',{type:'bar',data:{labels:dias.map(d=>diaSem(d.fecha)),datasets:[
+      {...barDs(dias.map(d=>+d.g.toFixed(2)),C.s1),label:'Uber'},
+      {...barDs(dias.map(d=>+d.tx.toFixed(2)),'#f2c200'),label:'Taxímetro'}]},
+    options:baseOpts({plugins:{legend:{display:false},tooltip:{...baseOpts().plugins.tooltip,callbacks:{label:c=>' '+c.dataset.label+': '+fmt$(c.parsed.y)}}}})});
   mkChart('c2',{type:'line',data:{labels:labs,datasets:[
       {label:'$/km',data:dias.map(d=>d.km?+(d.g/d.km).toFixed(2):null),borderColor:C.s1,backgroundColor:C.s1,borderWidth:2,pointRadius:4,pointHoverRadius:6,pointBorderColor:'#1a1a19',pointBorderWidth:2,tension:.25,spanGaps:true},
       {label:'Promedio',data:dias.map(()=>+P.porKm.toFixed(2)),borderColor:'#8d8c84',borderDash:[5,5],borderWidth:1.5,pointRadius:0}]},
