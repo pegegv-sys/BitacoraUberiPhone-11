@@ -1,8 +1,8 @@
 // Bitácora Uber: guarda la app en el teléfono para que abra sin internet.
-const CACHE='bitacora-uber-v31';
+const CACHE='bitacora-uber-v32';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png'];
 // Archivos del mapa sin internet: se guardan si existen (si falta alguno, la app sigue funcionando)
-const OPCIONALES=['./maplibre-gl.js','./maplibre-gl.css','./mapa-offline.js',
+const OPCIONALES=['./vista3d.js','./maplibre-gl.js','./maplibre-gl.css','./mapa-offline.js',
   ...['regular','medium','italic'].flatMap(f=>['0-255','256-511','8192-8447'].map(r=>`./letra-${f}-${r}.pbf`))];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(async c=>{
   await c.addAll(FILES);

@@ -864,6 +864,25 @@ body.sin-scroll{overflow:hidden}
 
 
 
+
+/* ---- Vista 3D ---- */
+.vsel{display:flex;gap:6px;align-items:center;margin:8px 0 6px}
+.vsel button{font:700 14px system-ui,sans-serif;color:var(--text-primary);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-height:40px}
+.vsel button[aria-pressed="true"]{background:#3987e5;border-color:#3987e5;color:#fff}
+.vsel .v3cam{margin-left:auto;font-weight:600}
+.esc3d{position:relative;height:300px;border-radius:14px;overflow:hidden;background:#bcd9ef}
+.esc3d[hidden],.escena[hidden]{display:none!important}
+.esc3d canvas{touch-action:pan-y}
+.v3-msg{position:absolute;inset:0;display:grid;place-items:center;padding:16px;text-align:center;color:#1d1d1b;font-weight:600;background:#bcd9efcc}
+.v3-msg[hidden]{display:none}
+.v3-ab{position:absolute;left:10px;right:10px;top:8px;display:flex;align-items:center;gap:8px;pointer-events:none}
+.v3-ab[hidden]{display:none}
+.v3-ab .pt{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:800 12px system-ui;color:#fff;box-shadow:0 1px 3px #0008}
+.v3-ab .pt.a{background:#3987e5}.v3-ab .pt.b{background:#d95926}
+.v3-ab .riel{position:relative;flex:1;height:6px;border-radius:3px;background:#0005}
+#v3prog{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:3px;background:#3987e5}
+#v3auto{position:absolute;top:50%;left:0;transform:translate(-50%,-55%);font-size:18px;filter:drop-shadow(0 1px 2px #000)}
+#pantallaEsc .esc-box.grande .esc3d{border-radius:10px}
 /* ---- Carril confinado del Metrobús (líneas y confinadores amarillos) ---- */
 .escena .confi{display:none;position:absolute;left:0;right:0;top:4px;height:6px;
   background:linear-gradient(#f2c200,#f2c200) 0 0/100% 2px no-repeat, repeating-linear-gradient(90deg,#f2c200 0 14px,#2b2b2b 14px 16px,transparent 16px 34px) 0 3px/100% 3px repeat-x;
@@ -2464,6 +2483,8 @@ function actualizarEscena(j){
   }
   e.classList.toggle('parado', det>=3 || llego); e.classList.toggle('rojo', det>=10 && !llego);
   const nivel=nivelTrafico(det); e.classList.toggle('pesado', nivel==='pesado'); armarTrafico(e, nivel, zonaTrafico(), cx);
+  if(vista3D && window.Vista3D){ const est=estado3D(j, det, llego, nivel, cx); Vista3D.actualizar(est);
+    const ab=$('#v3ab'); if(ab){ ab.hidden=!(est.viaje && est.pct!=null); if(!ab.hidden){ $('#v3prog').style.width=(est.pct*100).toFixed(1)+'%'; $('#v3auto').style.left=(est.pct*100).toFixed(1)+'%'; } } }
   if(det>=10 && !llego) iniciarPeatones();
   if(det>=10 && !llego) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
   const ai=$('#avInfo'); if(ai && ai.dataset.h!==info){ ai.dataset.h=info; ai.innerHTML=info; }
@@ -2791,16 +2812,64 @@ let ESCN=null, enPantalla=false;
 function nodoEscena(){
   if(ESCN) return ESCN;
   const d=document.createElement('div'); d.className='esc-box';
-  d.innerHTML=`<div id="letrero"></div>${escenaHTML()}`;
+  d.innerHTML=`<div id="letrero"></div>
+    <div class="vsel" role="group" aria-label="Tipo de vista"><button data-vista="2d" aria-pressed="true">2D</button><button data-vista="3d" aria-pressed="false">3D</button><button class="v3cam" data-v3cam="1" hidden>🎥 Diagonal</button></div>
+    ${escenaHTML()}`;
+  d.querySelector('#escenaV').insertAdjacentHTML('afterend',`<div class="esc3d" id="esc3d" hidden><div class="v3-ab" id="v3ab" hidden><span class="pt a">A</span><div class="riel"><div id="v3prog"></div><span id="v3auto">🚗</span></div><span class="pt b">B</span></div><div class="v3-msg" id="v3msg">Cargando vista 3D…</div></div>`);
+  d.querySelector('.vsel').addEventListener('click',ev=>{ const b=ev.target.closest('button'); if(!b) return;
+    if(b.dataset.v3cam){ if(window.Vista3D) b.textContent='🎥 '+Vista3D.camara(); return; }
+    ponerVista(b.dataset.vista); });
   d.addEventListener('click',ev=>{ const b=ev.target.closest('[data-av]'); if(!b) return;
     if(b.dataset.av==='rr'){ if(ultimaPos){ try{ localStorage.setItem('rafaelReyesLon', String(ultimaPos.lon)); }catch(e){} ctxT.ts=-1; toast('Listo: el Trolebús Elevado se verá de Constitución de 1917 hasta aquí'); actualizarEscena(jornadaActiva()); } return; }
     const j=jornadaActiva(); if(j) accionAvance(j,b.dataset.av); });
   ESCN=d; return d;
 }
+/* ---- Vista 2D / 3D ---- */
+let vista3D = (()=>{ try{ return localStorage.getItem('vista3d')==='1'; }catch(e){ return false; } })();
+let carga3D=null;
+function cargar3D(){
+  if(window.Vista3D) return Promise.resolve();
+  if(carga3D) return carga3D;
+  carga3D=new Promise((ok,mal)=>{ const sc=document.createElement('script'); sc.src='vista3d.js'; sc.onload=()=> window.Vista3D? ok() : mal(); sc.onerror=()=>{ carga3D=null; mal(); }; document.head.appendChild(sc); });
+  return carga3D;
+}
+async function ponerVista(m){
+  const quiere3D = m==='3d';
+  vista3D=quiere3D; try{ localStorage.setItem('vista3d', quiere3D?'1':'0'); }catch(e){}
+  aplicarVista();
+  if(!quiere3D) return;
+  const msg=$('#v3msg'); if(msg){ msg.hidden=false; msg.textContent='Cargando vista 3D…'; }
+  try{
+    await cargar3D();
+    if(!Vista3D.disponible()) throw new Error('webgl');
+    if(!vista3D) return;
+    if(msg) msg.hidden=true;
+    Vista3D.montar($('#esc3d')); const cb=ESCN&&ESCN.querySelector('[data-v3cam]'); if(cb) cb.textContent='🎥 '+Vista3D.nombreCamara();
+    actualizarEscena(jornadaActiva());
+  }catch(e){
+    if(msg) msg.textContent= e&&e.message==='webgl'? 'Este dispositivo no puede mostrar gráficos 3D.' : 'No se pudo cargar la vista 3D: falta el archivo vista3d.js (súbelo a GitHub junto con index.html).';
+  }
+}
+function aplicarVista(){
+  if(!ESCN) return;
+  const e2=ESCN.querySelector('#escenaV'), e3=ESCN.querySelector('#esc3d'), cb=ESCN.querySelector('[data-v3cam]');
+  e2.hidden=vista3D; e3.hidden=!vista3D; if(cb) cb.hidden=!vista3D;
+  ESCN.querySelectorAll('[data-vista]').forEach(b=>b.setAttribute('aria-pressed', String((b.dataset.vista==='3d')===vista3D)));
+  if(!vista3D && window.Vista3D) Vista3D.desmontar();
+  if(enPantalla) escalarPantalla();
+}
+function estado3D(j, det, llego, nivel, cx){
+  const va=j&&j.viajeActivo, p=va? progresoViaje(j) : null;
+  return { viaje:!!va, pct: p&&p.pct!=null? Math.min(1,p.pct) : null, dist: p&&p.dist? p.dist : null,
+    vel: gpsState==='on'? velocidadCorta() : null, nivel, noche: esDeNoche(), rojo: det>=10 && !llego, llego: !!llego,
+    zona: zonaTrafico(), pico: !!(cx && cx.perif && horaPicoPerif()) };
+}
 const escenaSlotHTML = () => `<div id="escenaSlot"></div><button class="btn sec2 small" data-pantalla="1">⛶ Ver a pantalla completa</button>`;
 function montarEscena(){
   const n=nodoEscena(), slot= enPantalla? $('#pcSlot') : $('#escenaSlot'); if(!slot) return;
+  const nuevo=!n.parentNode;
   if(n.parentNode!==slot) slot.appendChild(n);
+  aplicarVista(); if(nuevo && vista3D) ponerVista('3d');
   actualizarEscena(jornadaActiva()); ajustarMarquesina();
   if(enPantalla) escalarPantalla();
 }
@@ -2817,7 +2886,7 @@ function abrirPantalla(){
 }
 function cerrarPantalla(){
   enPantalla=false; const o=$('#pantallaEsc'); if(o) o.classList.remove('open'); document.body.classList.remove('sin-scroll');
-  if(ESCN){ ESCN.classList.remove('grande'); ESCN.style.cssText=''; }
+  if(ESCN){ ESCN.classList.remove('grande'); ESCN.style.cssText=''; const e3=ESCN.querySelector('#esc3d'); if(e3) e3.style.height=''; }
   try{ if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); else if(document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen(); }catch(e){}
   try{ screen.orientation.unlock(); }catch(e){}
   montarEscena(); const j=jornadaActiva(); pantallaEncendida(!!(j&&j.viajeActivo));
@@ -2825,6 +2894,9 @@ function cerrarPantalla(){
 function escalarPantalla(){
   if(!enPantalla || !ESCN) return; const slot=$('#pcSlot'); if(!slot) return;
   const W=slot.clientWidth, H=slot.clientHeight;
+  if(vista3D){ const e3=$('#esc3d'); ESCN.classList.add('grande'); ESCN.style.transform='none'; ESCN.style.width=W+'px';
+    e3.style.height='200px'; const otros=ESCN.offsetHeight-e3.offsetHeight; e3.style.height=Math.max(180,H-otros-14)+'px'; return; }
+  const e3b=$('#esc3d'); if(e3b) e3b.style.height='';
   ESCN.classList.add('grande'); ESCN.style.transform='none';
   let k=1; for(let i=0;i<3;i++){ ESCN.style.width=(W/k)+'px'; const h=ESCN.offsetHeight; k=Math.max(1, Math.min(H/h, W/330)); }
   ESCN.style.width=(W/k)+'px';
