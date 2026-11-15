@@ -877,6 +877,8 @@ body.sin-scroll{overflow:hidden}
 .v3-msg[hidden]{display:none}
 .v3-ab{position:absolute;left:10px;right:10px;top:8px;display:flex;align-items:center;gap:8px;pointer-events:none}
 .v3-ab[hidden]{display:none}
+.tt-live{font-size:13px;line-height:1.4;margin:6px 2px 0;color:var(--text-secondary,#d6d4cb)}
+.tt-live[hidden]{display:none}
 .v3-fuente{position:absolute;left:8px;bottom:8px;font:600 11px system-ui,sans-serif;color:#fff;background:#0009;border-radius:8px;padding:4px 8px;pointer-events:none}
 .v3-ab .pt{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:800 12px system-ui;color:#fff;box-shadow:0 1px 3px #0008}
 .v3-ab .pt.a{background:#3987e5}.v3-ab .pt.b{background:#d95926}
@@ -1447,7 +1449,8 @@ async function accionAvance(j,a){
 let tickN=0;
 function actualizarEnVivo(){
   const j=jornadaActiva(); tickN++;
-  actualizarDireccion();
+  actualizarDireccion(); tickTomTom();
+  const ttl=$('#ttLive'); if(ttl){ const h=ttLiveHTML(); if(ttl.dataset.h!==h){ ttl.dataset.h=h; ttl.innerHTML=h; } ttl.hidden=!h; }
   if(j){ if(tickN%5===0) evaluarTrafico();
     const tl=$('#trafLive'); if(tl) tl.innerHTML = j.viajeActivo&&j.viajeActivo.traficoActual? tramoHTML(j.viajeActivo.traficoActual,true) : '';
     const vl=$('#velLive'); if(vl) vl.textContent = velActual!=null? `🚀 ${fmtNum(velActual,0)} km/h (último minuto)` : ''; }
@@ -1931,7 +1934,7 @@ function puntoEn(ts){ let m=null, dm=Infinity; crudo.forEach(p=>{ const d=Math.a
 function abrirTramo(j, desde){
   const va=j.viajeActivo, ini=puntoEn(desde); if(!ini) return;
   let km=0; crudo.filter(p=>p.ts>=desde).forEach((p,i,a)=>{ if(i) km+=haversine(a[i-1],p); });
-  va.traficoActual={id:uid(), ini, km:+km.toFixed(3)};
+  va.traficoActual={id:uid(), ini, km:+km.toFixed(3)}; { const f=ttAqui(); if(f) va.traficoActual.normal=Math.round(f.normal); }
   save(j); render(); toast('🐢 Tráfico detectado (menos de '+TRAF.vel+' km/h)');
   const id=va.traficoActual.id;
   dirConCruce(ini, dirActual&&dirActual.calle).then(d=>{ const t=buscarTramo(j,id); if(t){ t.ini.dir=d; t.desc=descTramo(t); save(j); render(); } });
@@ -1969,10 +1972,136 @@ function descTramo(t){
 function tramoHTML(t, vivo){
   const dur = vivo? (Date.now()-t.ini.ts)/60000 : t.min;
   const vel = vivo? (dur>0? t.km/(dur/60) : 0) : t.vel;
-  return `<div class="trafico">🐢 <b>${esc(t.desc||descTramo(t))}</b><div class="muted">${vivo?'En este momento · ':''}${fmtNum(t.km,1)} km en ${fmtNum(dur,0)} min (${fmtNum(vel,0)} km/h) · ${fmtHora(t.ini.ts)}${t.fin?'–'+fmtHora(t.fin.ts):''}</div></div>`;
+  return `<div class="trafico">🐢 <b>${esc(t.desc||descTramo(t))}</b><div class="muted">${vivo?'En este momento · ':''}${fmtNum(t.km,1)} km en ${fmtNum(dur,0)} min (${fmtNum(vel,0)} km/h${t.normal? ', normal '+t.normal+' km/h':''}) · ${fmtHora(t.ini.ts)}${t.fin?'–'+fmtHora(t.fin.ts):''}</div></div>`;
 }
 const tramosDe = t => (t.trafico||[]);
 
+
+/* =================== Tráfico en tiempo real (TomTom) ===================
+   Clave gratis de developer.tomtom.com. Plan gratis: 2,500 consultas de datos y 50,000 de mapa al día.
+   La app se cuida sola: deja de pedir datos al llegar a 2,300 consultas en el día. */
+const TT={ key:(()=>{ try{ return localStorage.getItem('tomtomKey')||''; }catch(e){ return ''; } })(),
+  flujo:null, ultFlujo:0, posFlujo:null, incid:[], ultIncid:0, posIncid:null, lineas:null, ultLineas:0, posLineas:null, ocupado:false, error:'' };
+const ttActivo = () => !!TT.key && !enClaude();
+function ttUso(sumar=0, tipo='datos'){
+  const hoy=fechaLocal(Date.now()); let u; try{ u=JSON.parse(localStorage.getItem('tomtomUso')||'{}'); }catch(e){ u={}; }
+  if(u.f!==hoy) u={f:hoy, datos:0, mapa:0};
+  if(sumar){ u[tipo]=(u[tipo]||0)+sumar; try{ localStorage.setItem('tomtomUso',JSON.stringify(u)); }catch(e){} }
+  return u;
+}
+const ttPuede = (tipo='datos') => ttUso()[tipo] < (tipo==='datos'? 2300 : 45000);
+async function ttGET(url, tipo='datos'){
+  if(!ttPuede(tipo)) throw new Error('Llegaste al límite gratis de TomTom por hoy');
+  ttUso(1,tipo);
+  const r=await fetch(url);
+  if(r.status===403 || r.status===401) throw new Error('La clave de TomTom no es válida o no está autorizada');
+  if(!r.ok) throw new Error('TomTom respondió '+r.status);
+  return r;
+}
+async function ttFlujo(c){
+  const r=await ttGET(`https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point=${c.lat.toFixed(5)},${c.lon.toFixed(5)}&unit=KMPH&openLr=false&key=${encodeURIComponent(TT.key)}`);
+  const f=(await r.json()).flowSegmentData; if(!f) throw new Error('Sin datos de tráfico aquí');
+  return { vel:f.currentSpeed, normal:f.freeFlowSpeed, ratio: f.freeFlowSpeed? f.currentSpeed/f.freeFlowSpeed : 1, conf:f.confidence, cerrada:!!f.roadClosure,
+    ts:Date.now(), lat:c.lat, lon:c.lon };
+}
+const TT_TIPO={0:'Incidente',1:'Accidente',2:'Niebla',3:'Peligro',4:'Lluvia',5:'Hielo',6:'Embotellamiento',7:'Carril cerrado',8:'Calle cerrada',9:'Obras',10:'Viento',11:'Inundación',14:'Vehículo descompuesto'};
+async function ttIncidentes(c){
+  const d=0.025, bb=[c.lon-d,c.lat-d,c.lon+d,c.lat+d].map(v=>v.toFixed(5)).join(',');
+  const campos='{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description},from,to,delay}}}';
+  const r=await ttGET(`https://api.tomtom.com/traffic/services/5/incidentDetails?bbox=${bb}&fields=${encodeURIComponent(campos)}&language=es-ES&timeValidityFilter=present&key=${encodeURIComponent(TT.key)}`);
+  const js=await r.json();
+  return (js.incidents||[]).map(i=>{ const g=i.geometry||{}, co=g.type==='Point'? [g.coordinates] : (g.coordinates||[]);
+    const pts=co.map(([lo,la])=>[la,lo]); const p=i.properties||{};
+    const dist=pts.length? Math.min(...pts.map(q=>haversine(c,{lat:q[0],lon:q[1]}))) : 99;
+    return { tipo: TT_TIPO[p.iconCategory]||'Incidente', cat:p.iconCategory, desc:(p.events&&p.events[0]&&p.events[0].description)||'', de:p.from||'', a:p.to||'', retraso:p.delay||0, mag:p.magnitudeOfDelay||0, pts, dist };
+  }).filter(i=>i.pts.length).sort((a,b)=>a.dist-b.dist);
+}
+// líneas de colores (fluidez) para el 3D: mosaicos vectoriales de TomTom
+async function ttLineas(c){
+  if(!window.MapaOffline) await cargarRecurso('mapa-offline.js');
+  const {VectorTile,Pbf}=window.MapaOffline, z=14, n=2**z;
+  const fx=lon=>(lon+180)/360*n, fy=lat=>(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*n;
+  const d=0.007, X0=Math.floor(fx(c.lon-d)), X1=Math.floor(fx(c.lon+d)), Y0=Math.floor(fy(c.lat+d)), Y1=Math.floor(fy(c.lat-d));
+  const out=[];
+  for(let x=X0;x<=X1;x++) for(let y=Y0;y<=Y1;y++){
+    const r=await ttGET(`https://api.tomtom.com/traffic/map/4/tile/flow/relative/${z}/${x}/${y}.pbf?key=${encodeURIComponent(TT.key)}`,'mapa');
+    const vt=new VectorTile(new Pbf(new Uint8Array(await r.arrayBuffer())));
+    for(const nombre in vt.layers){ const L=vt.layers[nombre], ext=L.extent||4096;
+      for(let i=0;i<L.length;i++){ const f=L.feature(i), p=f.properties||{};
+        let niv = p.traffic_level!=null? +p.traffic_level : p.relative_speed!=null? +p.relative_speed : null; if(niv==null || !isFinite(niv)) continue;
+        if(niv>1.5) niv/=100;                                    // por si viene en porcentaje
+        for(const parte of f.loadGeometry()){ if(parte.length<2) continue;
+          out.push({ nivel: p.closed||p.road_closure? -1 : niv, pts: parte.map(q=>{ const X=(x+q.x/ext)/n, Y=(y+q.y/ext)/n; return [Math.atan(Math.sinh(Math.PI*(1-2*Y)))*180/Math.PI, X*360-180]; }) }); } } }
+  }
+  return out;
+}
+async function tickTomTom(){
+  if(!ttActivo() || TT.ocupado || !conInternet() || !ultimaPos || gpsState!=='on') return;
+  const now=Date.now(), c={lat:ultimaPos.lat, lon:ultimaPos.lon};
+  const lejos=(p,km)=>!p || haversine(p,c)>km;
+  TT.ocupado=true;
+  try{
+    if(now-TT.ultFlujo>75000 || (lejos(TT.posFlujo,0.25) && now-TT.ultFlujo>25000)){ TT.ultFlujo=now; TT.posFlujo=c; TT.flujo=await ttFlujo(c); TT.error=''; }
+    if(now-TT.ultIncid>180000 || (lejos(TT.posIncid,1.2) && now-TT.ultIncid>45000)){ TT.ultIncid=now; TT.posIncid=c; TT.incid=await ttIncidentes(c); }
+    if(vista3D && window.Vista3D && (now-TT.ultLineas>150000 || lejos(TT.posLineas,0.5))){ TT.ultLineas=now; TT.posLineas=c; TT.lineas=await ttLineas(c); Vista3D.trafico(TT.lineas); }
+  }catch(e){ TT.error=e.message||'Error de TomTom'; }
+  finally{ TT.ocupado=false; }
+}
+// tráfico real en tu posición (si es reciente y de aquí cerca)
+function ttAqui(){ const f=TT.flujo; if(!f || !ultimaPos || Date.now()-f.ts>240000 || haversine(f,ultimaPos)>0.35) return null; return f; }
+function ttLiveHTML(){
+  if(!ttActivo()) return '';
+  const f=ttAqui(); let h='';
+  if(f){ const est = f.cerrada? '⛔ calle cerrada' : f.ratio<0.6||f.vel<20? '🔴 tráfico pesado' : f.ratio<0.8? '🟡 tráfico moderado' : '🟢 fluido';
+    h+=`🚦 <b>TomTom:</b> ${fmtNum(f.vel,0)} km/h ahora · normal ${fmtNum(f.normal,0)} km/h · ${est}`; }
+  else if(TT.error) h+=`🚦 TomTom: ${esc(TT.error)}`;
+  else h+='🚦 TomTom: consultando el tráfico…';
+  const inc=(TT.incid||[]).filter(i=>i.dist<3).slice(0,3);
+  if(inc.length) h+='<br>'+inc.map(i=>`⚠️ ${esc(i.tipo)}${i.de?' · '+esc(i.de):''}${i.desc&&i.desc!==i.tipo?' ('+esc(i.desc)+')':''} · a ${fmtNum(i.dist,1)} km${i.retraso>60?' · +'+Math.round(i.retraso/60)+' min':''}`).join('<br>');
+  return h;
+}
+function tomtomCardHTML(){
+  if(enClaude()) return `<div class="card"><h2>🚦 Tráfico en tiempo real (TomTom)</h2><div class="muted">Disponible en la versión instalada (GitHub) de tu iPhone, iPad o Moto G34.</div></div>`;
+  const u=ttUso();
+  return `<div class="card${TT.key?' best':''}"><h2>🚦 Tráfico en tiempo real (TomTom)</h2>
+    ${TT.key? `<div class="sec">✅ Activo · consultas hoy: ${u.datos||0} de 2,500 de datos y ${u.mapa||0} de 50,000 de mapa</div>` : `<p class="sec" style="margin-top:0">Pinta las calles de verde, amarillo o rojo según el tráfico real, avisa de choques y cierres, y usa el tráfico real en la escena del coche.</p>`}
+    <ol class="muted" style="padding-left:20px;margin:8px 0;font-size:14px;line-height:1.45">
+      <li>Entra a <b>developer.tomtom.com</b> y crea una cuenta gratis (no pide tarjeta).</li>
+      <li>En tu <b>Dashboard</b>, abre <b>Keys</b> y copia tu clave (API key).</li>
+      <li>Recomendado: en la configuración de la clave, si te deja limitar dominios, agrega <b>pegegv-sys.github.io</b> para que solo funcione en tu app.</li>
+      <li>Pega la clave aquí y toca <b>Guardar</b>.</li></ol>
+    <input id="ttKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Pega aquí tu clave de TomTom" value="${esc(TT.key)}" style="font-size:15px">
+    <button class="btn go" id="ttGuardar">Guardar y probar</button>
+    <div id="ttProb" class="muted" style="margin-top:6px"></div>
+    ${TT.key? '<button class="btn danger small" id="ttQuitar">Quitar la clave</button>':''}</div>`;
+}
+function conectarTomTom(){
+  const g=$('#ttGuardar'); if(!g) return;
+  g.onclick=async()=>{ const k=($('#ttKey').value||'').trim(), pr=$('#ttProb');
+    if(!k){ toast('Pega tu clave de TomTom'); return; }
+    if(!conInternet()){ toast('Necesitas internet para probar la clave'); return; }
+    g.disabled=true; pr.textContent='Probando la clave…';
+    const viejo=TT.key; TT.key=k;
+    try{ const c=ultimaPos? {lat:ultimaPos.lat, lon:ultimaPos.lon} : {lat:19.4326, lon:-99.1332};
+      const f=await ttFlujo(c); try{ localStorage.setItem('tomtomKey',k); }catch(e){}
+      TT.ultFlujo=0; TT.ultIncid=0; TT.ultLineas=0; ttCapaLM();
+      pr.innerHTML=`✅ Funciona. ${ultimaPos?'Donde estás':'En el Zócalo'}: ${fmtNum(f.vel,0)} km/h ahora (normal ${fmtNum(f.normal,0)} km/h).`; toast('TomTom activado ✔');
+      setTimeout(render,1500);
+    }catch(e){ TT.key=viejo; pr.textContent='❌ '+(e.message||'No funcionó la clave'); }
+    g.disabled=false; };
+  const q=$('#ttQuitar'); if(q) q.onclick=()=>{ if(!confirm('¿Quitar la clave de TomTom?')) return; TT.key=''; TT.flujo=null; TT.incid=[]; try{ localStorage.removeItem('tomtomKey'); }catch(e){} ttCapaLM(); if(window.Vista3D) Vista3D.trafico([]); render(); };
+}
+// capa de tráfico en el mapa 2D (Leaflet)
+let LMtt=null, LMttT=0;
+function ttCapaLM(){
+  if(!LM) return;
+  if(LMtt){ LM.removeLayer(LMtt); LMtt=null; }
+  if(!ttActivo()) return;
+  LMttT=Date.now();
+  LMtt=L.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${encodeURIComponent(TT.key)}&t={t}`,{maxZoom:19, opacity:.85, t:()=>Math.floor(LMttT/180000), attribution:'Tráfico © TomTom'}).addTo(LM);
+  LMtt.on('tileload',()=>ttUso(1,'mapa'));
+}
+setInterval(()=>{ if(LMtt && Date.now()-LMttT>180000){ LMttT=Date.now(); LMtt.redraw(); } }, 30000);
 /* ---- Mapa con nombres de calles (Leaflet + OpenStreetMap), solo con internet en la versión instalada ---- */
 let LM=null, LMel=null, LMcapa=null, LMfalla=false, LMcargas=0, LMerrores=0, LMauto=true;
 const mapaCalles = () => !!window.L && conInternet() && !LMfalla;
@@ -1985,7 +2114,7 @@ function iniciarLM(){
   tl.on('tileload',()=>LMcargas++);
   tl.on('tileerror',()=>{ LMerrores++; if(LMerrores>8 && LMcargas===0){ LMfalla=true; render(); } });
   CDMX_ALCALDIAS.forEach(a=>a.p.forEach(p=>L.polyline(p.map(([x,y])=>[y,x]),{color:'#5a5a55',weight:1.5,opacity:.6,dashArray:'4 4',interactive:false}).addTo(LM)));
-  LMcapa=L.layerGroup().addTo(LM);
+  LMcapa=L.layerGroup().addTo(LM); ttCapaLM();
   LM.on('dragstart',()=>{ if(mapaModo==='seguir'){ mapaModo='libre'; marcarModo(); } });
 }
 function marcarModo(){ document.querySelectorAll('#mapaModo [data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===mapaModo)); }
@@ -2714,6 +2843,8 @@ function nivelTrafico(det){
   if(gpsState!=='on' || det>=120) { tCambio=0; return tNivel='ligero'; }   // sin GPS o estacionado
   const h=new Date().getHours();
   if(h>=23 || h<6 || esCalleSecundaria()) { tCambio=0; return tNivel='ligero'; }  // de noche y en calles secundarias
+  const f=ttAqui();
+  if(f){ tCambio=0; return tNivel = (f.cerrada || f.ratio<0.6 || f.vel<20)? 'pesado' : 'ligero'; }   // tráfico real de TomTom
   let pes;
   if(va && va.traficoActual) pes=true;
   else { const v=velocidadVentana(); if(v==null) return tNivel; pes=v<TRAF.vel; }
@@ -2814,7 +2945,7 @@ let ESCN=null, enPantalla=false;
 function nodoEscena(){
   if(ESCN) return ESCN;
   const d=document.createElement('div'); d.className='esc-box';
-  d.innerHTML=`<div id="letrero"></div>
+  d.innerHTML=`<div id="letrero"></div><div id="ttLive" class="tt-live" hidden></div>
     <div class="vsel" role="group" aria-label="Tipo de vista"><button data-vista="2d" aria-pressed="true">2D</button><button data-vista="3d" aria-pressed="false">3D</button><button class="v3cam" data-v3cam="1" hidden>🎥 Diagonal</button></div>
     ${escenaHTML()}`;
   d.querySelector('#escenaV').insertAdjacentHTML('afterend',`<div class="esc3d" id="esc3d" hidden><div class="v3-ab" id="v3ab" hidden><span class="pt a">A</span><div class="riel"><div id="v3prog"></div><span id="v3auto">🚗</span></div><span class="pt b">B</span></div><div class="v3-fuente" id="v3fuente"></div><div class="v3-msg" id="v3msg">Cargando vista 3D…</div></div>`);
@@ -3013,7 +3144,7 @@ async function pedirCalles3D(c){
 function fuente3D(){
   const el=$('#v3fuente'); if(!el) return;
   const real=window.Vista3D && Vista3D.modo()==='real';
-  el.textContent = real? `🗺️ Calles reales · © OpenStreetMap${C3D.fuente==='mapa del teléfono'?' (mapa del teléfono)':C3D.fuente==='guardadas'?' · guardadas, sin gastar datos':''}` : C3D.cargando? 'Cargando calles reales…' : ultimaPos? 'Vista de muestra · sin datos de calles todavía' : 'Vista de muestra · activa el GPS para ver tus calles';
+  el.textContent = real? `🗺️ Calles reales · © OpenStreetMap${ttActivo()&&TT.lineas?' · Tráfico © TomTom':''}${C3D.fuente==='mapa del teléfono'?' (mapa del teléfono)':C3D.fuente==='guardadas'?' · guardadas, sin gastar datos':''}` : C3D.cargando? 'Cargando calles reales…' : ultimaPos? 'Vista de muestra · sin datos de calles todavía' : 'Vista de muestra · activa el GPS para ver tus calles';
 }
 /* ---- Vista 2D / 3D ---- */
 let vista3D = (()=>{ try{ return localStorage.getItem('vista3d')==='1'; }catch(e){ return false; } })();
@@ -3485,9 +3616,10 @@ function renderHistorial(){
     </div>
     ${mapaOfflineCardHTML()}
     ${zonas3DCardHTML()}
+    ${tomtomCardHTML()}
     ${monitorCardHTML()}
     <div class="muted" style="text-align:center;font-size:12px;margin:14px 0 4px">Bitácora Uber · versión ${APP_VERSION}</div>`;
-  conectarMonitorCard(); conectarMapaOfflineCard(); conectarZonas3D();
+  conectarMonitorCard(); conectarMapaOfflineCard(); conectarZonas3D(); conectarTomTom();
   v.querySelectorAll('[data-j]').forEach(d=>d.onclick=()=>{ const j=jornadas[d.dataset.j];
     const viajes=[...j.viajes].sort((a,b)=>tripRate(b)-tripRate(a)); const mx=viajes.length?tripRate(viajes[0]):0;
     openModal(resumenCard(j,'Detalle')+(rutasDeJornada(j).length? `<div class="card"><h2>🗺️ Recorridos del día</h2>${mapaCDMX(null,puntosDelDia(j),rutasDeJornada(j),true)}${leyendaRutas(j)}</div>`:'')+`<div class="card"><h2>Viajes (mejor a peor $/km) · ✎ para editar</h2>${viajes.map((t,i)=>tripRow(t,i+1,true,mx)).join('')||'<div class="empty">Sin viajes</div>'}</div>
