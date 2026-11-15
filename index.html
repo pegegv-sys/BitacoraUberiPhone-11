@@ -2878,7 +2878,13 @@ function completarMetro(d, c){
   if(distPolyKm(c,L8_TRONCOSO)<1.3 && !yaHay(L8_TRONCOSO)) d.rieles.push({pts:L8_TRONCOSO, elevado:false});
   d.rieles.forEach(r=>{ r.l8 = r.pts.some(p=>distPolyKm({lat:p[0],lon:p[1]},L8_TRONCOSO)<0.08); });
   // Metrobús: todos los corredores cercanos (datos abiertos CDMX)
-  d.mb=[]; for(const m of TRANSPORTE.mb) for(const seg of m.p) if(distPolyKm(c,seg)<1.6) d.mb.push({l:m.l, pts:seg});
+  // (las rutas que se enciman, como Río de los Remedios–Preparatoria 1 y sus tramos parciales de la Línea 5, se dibujan una sola vez)
+  d.mb=[]; const candMB=[];
+  for(const m of TRANSPORTE.mb) for(const seg of m.p) if(distPolyKm(c,seg)<1.6) candMB.push({l:m.l, pts:seg});
+  candMB.sort((a,b)=>b.pts.length-a.pts.length);
+  for(const m of candMB){ const mu=m.pts.filter((_,i)=>i%3===0 || i===m.pts.length-1);
+    const enc=mu.filter(q=>d.mb.some(o=>distPolyKm({lat:q[0],lon:q[1]},o.pts)<0.03)).length;
+    if(enc >= mu.length*0.8) continue; d.mb.push(m); }
   // Trolebús Elevado: sobre Ermita Iztapalapa, de Constitución de 1917 a Santa Martha
   d.troles=[]; const enTramo=([la,lo])=> la>19.335 && la<19.368 && lo>=EST_CONSTITUCION.lon-0.0008 && lo<=EST_SANTA_MARTHA.lon+0.003;
   const cand=d.calles.filter(k=>/ermita|eje 8 sur/i.test(sinAcentos(k.nombre||'')) && k.pts.some(enTramo)).sort((a,b)=>b.pts.length-a.pts.length);
