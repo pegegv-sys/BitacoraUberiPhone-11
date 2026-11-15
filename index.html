@@ -2490,7 +2490,6 @@ function actualizarEscena(j){
   if(det>=10 && !llego) iniciarPeatones();
   if(det>=10 && !llego) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
   const ai=$('#avInfo'); if(ai && ai.dataset.h!==info){ ai.dataset.h=info; ai.innerHTML=info; }
-  if(cx.ermitaEste) acts+=`<button data-av="rr">📍 Estoy en Rafael Reyes (fin del Trolebús Elevado)</button>`;
   const ac=$('#avActs'); if(ac && ac.dataset.h!==acts){ ac.dataset.h=acts; ac.innerHTML=acts; }
   pintarLetrero();
 }
@@ -2556,12 +2555,13 @@ function esCalleSecundaria(){ const c=nombreCalle(); return !!c && !RX_PRINCIPAL
 const esPeriferico=()=> /perif|adolfo lopez mateos|canal de garay/.test(nombreCalle());
 // Corredores del Trolebús por nombre de vialidad (líneas 0 a 14)
 const RX_TROLE=/eje central|lazaro cardenas|eje 2 sur|eje 2-?a sur|eje 7 sur|eje 7-?a sur|felix cuevas|extremadura|municipio libre|eje 8 sur|ermita|popocatepetl|eje 3 oriente|francisco del paso|calzada de la viga|churubusco|plutarco elias calles|patriotismo|revolucion|juanacatlan|circuito interior|eje 3 norte|cuitlahuac|aztecas|tlahuac|zaragoza|mexico-puebla|mexico puebla|wilfrido massieu|instituto politecnico|eje 5 sur|eje 6 sur|tasquena|taxquena|del iman|puerto aereo|santa ana|delfin madrigal/;
-function enTroleElevado(p){ return /ermita|eje 8 sur/.test(nombreCalle()) && p.lat>19.335 && p.lat<19.365 && p.lon>=EST_CONSTITUCION.lon-0.0008 && p.lon<=limiteRafaelReyes(); }
+function enTroleElevado(p){ return /ermita|eje 8 sur/.test(nombreCalle()) && p.lat>19.335 && p.lat<19.368 && p.lon>=EST_CONSTITUCION.lon-0.0008 && p.lon<=limiteRafaelReyes(); }
 
 const EST_CONSTITUCION={lat:19.34597, lon:-99.06380};
 const L8_TRONCOSO=[[19.4041,-99.1207],[19.3983,-99.1135],[19.3883,-99.1121]];   // Santa Anita – Coyuya – Iztacalco (Eje 3 Ote)
 function enTroncosoMetro(p){ return /francisco del paso|eje 3 oriente/.test(nombreCalle()) && p.lat>19.385 && p.lat<19.404 && distPolyKm(p,L8_TRONCOSO)<0.25; }
-function limiteRafaelReyes(){ try{ const v=parseFloat(localStorage.getItem('rafaelReyesLon')); if(isFinite(v)) return v; }catch(e){} return -99.0455; }
+const EST_SANTA_MARTHA={lat:19.3603, lon:-98.9952};
+function limiteRafaelReyes(){ return EST_SANTA_MARTHA.lon+0.003; }   // el Trolebús Elevado llega hasta Santa Martha
 function estacionConstitucionSVG(){
   const W=400, X=[]; for(let x=20;x<=360;x+=56) X.push(x);
   const ven=(x)=>`<rect class="ve" x="${x}" y="55" width="10" height="8" rx="1" fill="#22323f"/>`;
@@ -2877,7 +2877,119 @@ function completarMetro(d, c){
   if(distPolyKm(c,TLALPAN_TRAZO)<1.3 && !yaHay(TLALPAN_TRAZO)) d.rieles.push({pts:TLALPAN_TRAZO, elevado:false});
   if(distPolyKm(c,L8_TRONCOSO)<1.3 && !yaHay(L8_TRONCOSO)) d.rieles.push({pts:L8_TRONCOSO, elevado:false});
   d.rieles.forEach(r=>{ r.l8 = r.pts.some(p=>distPolyKm({lat:p[0],lon:p[1]},L8_TRONCOSO)<0.08); });
+  // Metrobús: todos los corredores cercanos (datos abiertos CDMX)
+  d.mb=[]; for(const m of TRANSPORTE.mb) for(const seg of m.p) if(distPolyKm(c,seg)<1.6) d.mb.push({l:m.l, pts:seg});
+  // Trolebús Elevado: sobre Ermita Iztapalapa, de Constitución de 1917 a Santa Martha
+  d.troles=[]; const enTramo=([la,lo])=> la>19.335 && la<19.368 && lo>=EST_CONSTITUCION.lon-0.0008 && lo<=EST_SANTA_MARTHA.lon+0.003;
+  const cand=d.calles.filter(k=>/ermita|eje 8 sur/i.test(sinAcentos(k.nombre||'')) && k.pts.some(enTramo)).sort((a,b)=>b.pts.length-a.pts.length);
+  for(const k of cand){ const pts=k.pts.filter(enTramo); if(pts.length<2) continue; const mid=pts[Math.floor(pts.length/2)];
+    if(d.troles.some(t=>distPolyKm({lat:mid[0],lon:mid[1]},t.pts)<0.045)) continue;   // Ermita de dos cuerpos: un solo viaducto
+    d.troles.push({pts}); }
   return d;
+}
+
+/* ---- Zonas de calles 3D guardadas en el teléfono (IndexedDB) ----
+   La ciudad se divide en cuadros de ~650 m. Cada cuadro se descarga una sola vez y queda guardado. */
+const ZONA=0.006, ZONA_VIEJA=90*864e5;
+const idb3d=(()=>{ let p; return ()=> p||(p=new Promise((ok,mal)=>{ const r=indexedDB.open('bitacora-calles3d',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('celdas'); r.onsuccess=()=>ok(r.result); r.onerror=()=>{ p=null; mal(r.error); }; })); })();
+async function celdaLeer(k){ try{ const db=await idb3d(); return await new Promise(ok=>{ const r=db.transaction('celdas').objectStore('celdas').get(k); r.onsuccess=()=>ok(r.result||null); r.onerror=()=>ok(null); }); }catch(e){ return null; } }
+async function celdaGuardar(k,v){ try{ const db=await idb3d(); return await new Promise(ok=>{ const t=db.transaction('celdas','readwrite'); t.objectStore('celdas').put(v,k); t.oncomplete=()=>ok(true); t.onerror=()=>ok(false); t.onabort=()=>ok(false); }); }catch(e){ return false; } }
+async function celdasInfo(){ try{ const db=await idb3d(); return await new Promise(ok=>{ let n=0,b=0; const r=db.transaction('celdas').objectStore('celdas').openCursor();
+  r.onsuccess=()=>{ const c=r.result; if(c){ n++; b+=c.value.bytes||0; c.continue(); } else ok({n,b}); }; r.onerror=()=>ok({n:0,b:0}); }); }catch(e){ return {n:0,b:0}; } }
+async function celdasBorrar(){ try{ const db=await idb3d(); await new Promise(ok=>{ const t=db.transaction('celdas','readwrite'); t.objectStore('celdas').clear(); t.oncomplete=ok; t.onerror=ok; }); }catch(e){} }
+const celdaDe=(lat,lon)=>[Math.floor(lat/ZONA), Math.floor(lon/ZONA)];
+const claveCelda=(i,j)=>i+'_'+j;
+const r6=v=>Math.round(v*1e6)/1e6;
+// descarga de OpenStreetMap un rectángulo de cuadros y lo reparte en cada cuadro
+async function descargarCeldas(lista){
+  if(!lista.length) return 0;
+  const is=lista.map(c=>c[0]), js=lista.map(c=>c[1]);
+  const S=Math.min(...is)*ZONA, N=(Math.max(...is)+1)*ZONA, W=Math.min(...js)*ZONA, Ee=(Math.max(...js)+1)*ZONA, bb=`${S.toFixed(6)},${W.toFixed(6)},${N.toFixed(6)},${Ee.toFixed(6)}`;
+  const q=`[out:json][timeout:60];(way["highway"~"${VIA_RX}"](${bb});way["building"](${bb});way["railway"~"^(subway|light_rail)$"](${bb}););out tags geom;`;
+  const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
+  if(!r.ok) throw new Error('overpass '+r.status);
+  const d=await r.json(), cajas={};
+  for(const [i,j] of lista) cajas[claveCelda(i,j)]={ts:Date.now(), v:1, calles:[], edificios:[], rieles:[]};
+  for(const w of d.elements||[]){
+    const t=w.tags||{}, g=(w.geometry||[]).map(p=>[r6(p.lat),r6(p.lon)]); if(g.length<2) continue;
+    let o, tipo;
+    if(t.highway){ const carr=parseFloat(t.lanes); tipo='calles'; o={id:w.id, pts:g, tipo:t.highway, nombre:t.name||'', oneway: t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}; }
+    else if(t.building){ tipo='edificios'; const h=parseFloat(t.height) || (t['building:levels']? parseFloat(t['building:levels'])*3.2 : 0); o={id:w.id, pts:g, h:h||null}; }
+    else if(t.railway){ if(t.tunnel==='yes' || parseFloat(t.layer)<0 || t.location==='underground') continue; tipo='rieles'; o={id:w.id, pts:g, elevado: !!t.bridge && t.bridge!=='no' || parseFloat(t.layer)>0}; }
+    else continue;
+    // a qué cuadros toca
+    let a=Infinity,b=-Infinity,c=Infinity,e=-Infinity; for(const [la,lo] of g){ a=Math.min(a,la); b=Math.max(b,la); c=Math.min(c,lo); e=Math.max(e,lo); }
+    const [i0,j0]=celdaDe(a,c), [i1,j1]=celdaDe(b,e);
+    for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const k=claveCelda(i,j); if(cajas[k]) cajas[k][tipo].push(o); }
+  }
+  for(const k in cajas){ const v=cajas[k]; v.bytes=JSON.stringify(v).length; await celdaGuardar(k,v); }
+  return Object.keys(cajas).length;
+}
+let zonasPersist=false;
+async function callesGuardadas(c, conRed){
+  // cuadros alrededor (unos 650 m a cada lado)
+  const [ci,cj]=celdaDe(c.lat,c.lon), cel=[];
+  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++) cel.push([i,j]);
+  const datos={}, faltan=[], viejas=[];
+  for(const [i,j] of cel){ const v=await celdaLeer(claveCelda(i,j)); if(v) datos[claveCelda(i,j)]=v; else faltan.push([i,j]); if(v && Date.now()-v.ts>ZONA_VIEJA) viejas.push([i,j]); }
+  let descargadas=0;
+  if(faltan.length && conRed){
+    if(!zonasPersist && navigator.storage && navigator.storage.persist){ zonasPersist=true; navigator.storage.persist().catch(()=>{}); }
+    descargadas=await descargarCeldas(faltan);
+    for(const [i,j] of faltan){ const v=await celdaLeer(claveCelda(i,j)); if(v) datos[claveCelda(i,j)]=v; }
+  }
+  if(!Object.keys(datos).length) return null;
+  // juntar sin repetir; los edificios solo cerca (para que el teléfono vaya fluido)
+  const out={centro:{lat:c.lat,lon:c.lon}, calles:[], edificios:[], rieles:[], fuente: descargadas? 'OpenStreetMap' : 'guardadas', faltan: faltan.length-(descargadas?faltan.length:0)};
+  const vistos=new Set();
+  for(const v of Object.values(datos)){
+    for(const tipo of ['calles','edificios','rieles']) for(const o of v[tipo]||[]){
+      const k=tipo[0]+o.id; if(vistos.has(k)) continue; vistos.add(k);
+      if(tipo==='edificios'){ if(haversine({lat:c.lat,lon:c.lon},{lat:o.pts[0][0],lon:o.pts[0][1]})>0.42) { vistos.delete(k); continue; } out.edificios.push({...o, id:String(o.id)}); }
+      else out[tipo].push(o);
+    }
+  }
+  // cuadros con más de 90 días: se actualizan después, sin prisa
+  if(conRed && viejas.length && !descargadas) setTimeout(()=>descargarCeldas(viejas).catch(()=>{}), 4000);
+  return out;
+}
+// Guardar de una vez la zona alrededor (por ejemplo en casa con Wi-Fi)
+async function guardarZonaAlrededor(km, prog){
+  if(!ultimaPos) throw new Error('Primero activa el GPS para saber dónde estás.');
+  const n=Math.ceil(km/0.65), [ci,cj]=celdaDe(ultimaPos.lat,ultimaPos.lon);
+  const filas=[]; for(let i=ci-n;i<=ci+n;i++){ const fila=[]; for(let j=cj-n;j<=cj+n;j++) if(!(await celdaLeer(claveCelda(i,j)))) fila.push([i,j]); if(fila.length) filas.push(fila); }
+  let hechas=0, total=filas.reduce((a,f)=>a+f.length,0);
+  if(!total){ prog&&prog('Esta zona ya estaba guardada completa ✔'); return 0; }
+  if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+  for(const fila of filas){
+    prog&&prog(`Guardando calles… ${hechas} de ${total} cuadros`);
+    let ok=false; for(let t=0;t<3 && !ok;t++){ try{ await descargarCeldas(fila); ok=true; }catch(e){ await new Promise(r=>setTimeout(r,4000*(t+1))); } }
+    if(!ok) throw new Error('OpenStreetMap no respondió. Intenta más tarde.');
+    hechas+=fila.length; await new Promise(r=>setTimeout(r,1200));
+  }
+  prog&&prog(`Listo: ${total} cuadros nuevos guardados ✔`); return total;
+}
+function zonas3DCardHTML(){
+  if(enClaude()) return '';
+  return `<div class="card"><h2>🧊 Calles 3D guardadas</h2>
+    <p class="sec" style="margin-top:0">Las calles que la vista 3D descarga se quedan en este teléfono. Si vuelves a pasar por ahí, ya no gastan datos.</p>
+    <div id="z3Info" class="muted">Calculando…</div>
+    <button class="btn sec2 small" id="z3Guardar">📥 Guardar ahora 2 km alrededor de donde estoy (usa Wi-Fi)</button>
+    <div id="z3Prog" class="muted" style="margin-top:6px"></div>
+    <button class="btn danger small" id="z3Borrar">Borrar calles 3D guardadas</button></div>`;
+}
+async function pintarZonas3D(){
+  const el=$('#z3Info'); if(!el) return;
+  const {n,b}=await celdasInfo();
+  el.textContent = n? `${n} cuadros guardados (≈ ${(n*0.42).toFixed(1)} km²) · ${b<1048576? Math.max(1,Math.round(b/1024))+' KB' : fmtMB(b)}` : 'Todavía no hay calles guardadas.';
+}
+function conectarZonas3D(){
+  const g=$('#z3Guardar'), bo=$('#z3Borrar'), pr=$('#z3Prog'); if(!g) return;
+  pintarZonas3D();
+  g.onclick=async()=>{ if(!conInternet()){ toast('Necesitas internet (mejor Wi-Fi)'); return; }
+    g.disabled=true; try{ await guardarZonaAlrededor(2, t=>{ if(pr) pr.textContent=t; }); }catch(e){ if(pr) pr.textContent=e.message||'No se pudo guardar'; } g.disabled=false; pintarZonas3D(); };
+  bo.onclick=async()=>{ if(!confirm('¿Borrar todas las calles 3D guardadas en este teléfono?')) return; await celdasBorrar(); C3D.datos=null; pintarZonas3D(); toast('Calles 3D borradas'); };
 }
 async function pedirCalles3D(c){
   if(C3D.cargando || !window.Vista3D) return;
@@ -2886,7 +2998,8 @@ async function pedirCalles3D(c){
   C3D.cargando=true; C3D.intento=Date.now(); fuente3D();
   try{
     let d=null;
-    if(conInternet()){ try{ d=await callesOverpass(c); }catch(e){ d=null; } }
+    try{ d=await callesGuardadas(c, conInternet()); }catch(e){ d=null; }        // primero lo guardado; solo baja lo que falta
+    if(d && d.faltan && MO){ try{ const m=await callesMapaTelefono(c); if(m && m.calles.length>d.calles.length) d=m; }catch(e){} }
     if(!d && MO){ try{ d=await callesMapaTelefono(c); }catch(e){ d=null; } }
     if(d){ completarMetro(d,c); C3D.datos=d; C3D.fuente=d.fuente; Vista3D.mapa(d); }
   } finally { C3D.cargando=false; fuente3D(); }
@@ -2894,7 +3007,7 @@ async function pedirCalles3D(c){
 function fuente3D(){
   const el=$('#v3fuente'); if(!el) return;
   const real=window.Vista3D && Vista3D.modo()==='real';
-  el.textContent = real? `🗺️ Calles reales · © OpenStreetMap${C3D.fuente==='mapa del teléfono'?' (mapa del teléfono)':''}` : C3D.cargando? 'Cargando calles reales…' : ultimaPos? 'Vista de muestra · sin datos de calles todavía' : 'Vista de muestra · activa el GPS para ver tus calles';
+  el.textContent = real? `🗺️ Calles reales · © OpenStreetMap${C3D.fuente==='mapa del teléfono'?' (mapa del teléfono)':C3D.fuente==='guardadas'?' · guardadas, sin gastar datos':''}` : C3D.cargando? 'Cargando calles reales…' : ultimaPos? 'Vista de muestra · sin datos de calles todavía' : 'Vista de muestra · activa el GPS para ver tus calles';
 }
 /* ---- Vista 2D / 3D ---- */
 let vista3D = (()=>{ try{ return localStorage.getItem('vista3d')==='1'; }catch(e){ return false; } })();
@@ -2934,6 +3047,7 @@ function estado3D(j, det, llego, nivel, cx){
   const va=j&&j.viajeActivo, p=va? progresoViaje(j) : null;
   return { pos: ultimaPos? {lat:ultimaPos.lat, lon:ultimaPos.lon, ts:ultimaPos.ts||0} : null,
     metroSint: cx && cx.metro? cx.metro : (enCalzadaTlalpan()? 's' : null), metro8: !!(cx && cx.metro8),
+    metrobus: !!(cx && cx.metrobus), troleElev: !!(cx && cx.troleElev),
     viaje:!!va, pct: p&&p.pct!=null? Math.min(1,p.pct) : null, dist: p&&p.dist? p.dist : null,
     vel: gpsState==='on'? velocidadCorta() : null, nivel, noche: esDeNoche(), rojo: det>=10 && !llego, llego: !!llego,
     zona: zonaTrafico(), pico: !!(cx && cx.perif && horaPicoPerif()) };
@@ -3364,9 +3478,10 @@ function renderHistorial(){
       <button class="btn sec2 small" id="bRest">Restaurar respaldo</button>
     </div>
     ${mapaOfflineCardHTML()}
+    ${zonas3DCardHTML()}
     ${monitorCardHTML()}
     <div class="muted" style="text-align:center;font-size:12px;margin:14px 0 4px">Bitácora Uber · versión ${APP_VERSION}</div>`;
-  conectarMonitorCard(); conectarMapaOfflineCard();
+  conectarMonitorCard(); conectarMapaOfflineCard(); conectarZonas3D();
   v.querySelectorAll('[data-j]').forEach(d=>d.onclick=()=>{ const j=jornadas[d.dataset.j];
     const viajes=[...j.viajes].sort((a,b)=>tripRate(b)-tripRate(a)); const mx=viajes.length?tripRate(viajes[0]):0;
     openModal(resumenCard(j,'Detalle')+(rutasDeJornada(j).length? `<div class="card"><h2>🗺️ Recorridos del día</h2>${mapaCDMX(null,puntosDelDia(j),rutasDeJornada(j),true)}${leyendaRutas(j)}</div>`:'')+`<div class="card"><h2>Viajes (mejor a peor $/km) · ✎ para editar</h2>${viajes.map((t,i)=>tripRow(t,i+1,true,mx)).join('')||'<div class="empty">Sin viajes</div>'}</div>

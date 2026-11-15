@@ -1,5 +1,5 @@
 // Bitácora Uber: guarda la app en el teléfono para que abra sin internet.
-const CACHE='bitacora-uber-v33';
+const CACHE='bitacora-uber-v35';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png'];
 // Archivos del mapa sin internet: se guardan si existen (si falta alguno, la app sigue funcionando)
 const OPCIONALES=['./vista3d.js','./maplibre-gl.js','./maplibre-gl.css','./mapa-offline.js',
@@ -10,9 +10,23 @@ self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(async c
 })); self.skipWaiting(); });
 // Al activar, borra versiones viejas de la app, pero NUNCA el mapa guardado (bitacora-mapa-…)
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE && !k.startsWith('bitacora-mapa')).map(k=>caches.delete(k))))); self.clients.claim(); });
+const TESELAS='bitacora-mapa-teselas', MAX_TESELAS=4000; let recortando=false;
+async function recortar(c){ if(recortando) return; recortando=true;
+  try{ const ks=await c.keys(); if(ks.length>MAX_TESELAS) for(const k of ks.slice(0, ks.length-MAX_TESELAS)) await c.delete(k); }catch(e){} recortando=false; }
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET') return;
   const u=new URL(e.request.url);
+  // Cuadritos del mapa de OpenStreetMap: se guardan en el teléfono y se reusan (no se vuelven a bajar)
+  if(/(^|\.)tile\.openstreetmap\.org$/.test(u.hostname)){
+    e.respondWith(caches.open(TESELAS).then(async c=>{
+      const hit=await c.match(e.request);
+      const fecha=hit && hit.type!=='opaque' && hit.headers.get('date'); const viejo=!!fecha && (Date.now()-new Date(fecha).getTime()) > 30*864e5;
+      if(hit && !viejo) return hit;
+      try{ const r=await fetch(e.request); if(r && (r.ok || r.type==='opaque')){ await c.put(e.request,r.clone()); recortar(c); } return r; }
+      catch(err){ return hit || Response.error(); }
+    }));
+    return;
+  }
   if(u.origin!==self.location.origin) return;                 // Firebase, calles en línea: directo a internet
   if(/\.pmtiles$/.test(u.pathname)) return;                   // el mapa grande no pasa por aquí
   const guardar=r=>{ if(r&&r.ok){ const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); } return r; };
