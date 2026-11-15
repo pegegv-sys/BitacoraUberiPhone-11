@@ -3138,7 +3138,7 @@ async function pedirCalles3D(c){
     try{ d=await callesGuardadas(c, conInternet()); }catch(e){ d=null; }        // primero lo guardado; solo baja lo que falta
     if(d && d.faltan && MO){ try{ const m=await callesMapaTelefono(c); if(m && m.calles.length>d.calles.length) d=m; }catch(e){} }
     if(!d && MO){ try{ d=await callesMapaTelefono(c); }catch(e){ d=null; } }
-    if(d){ completarMetro(d,c); C3D.datos=d; C3D.fuente=d.fuente; Vista3D.mapa(d); }
+    if(d){ completarMetro(d,c); try{ d.casa=JSON.parse(localStorage.getItem(LS_CASA)); }catch(e){} C3D.datos=d; C3D.fuente=d.fuente; Vista3D.mapa(d); }
   } finally { C3D.cargando=false; fuente3D(); }
 }
 function fuente3D(){
