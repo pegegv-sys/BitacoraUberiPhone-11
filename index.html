@@ -773,6 +773,20 @@ th{color:var(--text-muted);font-weight:500}
 #modal.open{display:flex}
 #modal .sheet{background:var(--surface-1);width:100%;max-width:640px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:calc(92vh - env(safe-area-inset-top));overflow:auto}
 #modal h3{margin:0 0 6px;font-size:19px}
+#radarAviso{position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:60;display:none;text-align:center;border-radius:14px;padding:14px 10px;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+#radarAviso.on{display:block}
+#radarAviso.aviso{background:#1a0000;border:3px solid #ff2a1a}
+#radarAviso.aviso .ra-big{color:#ff2a1a;animation:raParp .55s steps(2,start) infinite}
+#radarAviso.foto{background:#ff2a1a;border:3px solid #fff;animation:raFondo .5s steps(2,start) infinite}
+#radarAviso.foto .ra-big,#radarAviso.foto .ra-sub{color:#fff}
+#radarAviso.ok{background:#0f2a17;border:2px solid #34c759}
+#radarAviso.ok .ra-big{color:#34c759}
+#radarAviso .ra-big{font-size:clamp(30px,9vw,54px);font-weight:900;line-height:1.05;letter-spacing:.5px}
+#radarAviso .ra-sub{font-size:18px;margin-top:6px;color:#fff}
+@keyframes raParp{to{visibility:hidden}}
+@keyframes raFondo{50%{background:#8a0000}}
+.visita-bar{margin:8px 0 4px;padding:8px 10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
+.ira-rec{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.ira-rec .chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:inherit;font-size:14px}
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:14px;display:none;z-index:30;max-width:90%}
 .best{border:1px solid var(--series-1)}
 details summary{cursor:pointer;color:var(--text-secondary);font-size:14px;padding:4px 0}
@@ -1274,7 +1288,7 @@ function startGPS(){
       gpsState='on';
       const pt={lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy};
       ultimaPos={lat:+pt.lat.toFixed(6), lon:+pt.lon.toFixed(6), acc:Math.round(pt.acc), ts:Date.now()};
-      if(pt.acc<=60) alimentarCrudo(pt);
+      if(pt.acc<=60){ alimentarCrudo(pt); try{ const v=p.coords.speed!=null && p.coords.speed>=0? p.coords.speed*3.6 : velocidadInst(); radarCheck(pt, v); }catch(e){} }
       if(pt.acc>60){ updateGpsUI(); return; }
       if(gpsLast){
         const d=haversine(gpsLast,pt);
@@ -1900,6 +1914,7 @@ function velocidadVentana(){
   return km/h;
 }
 let velActual=null;
+function velocidadInst(){ const n=crudo.length; if(n<2) return 0; const a=crudo[n-2], b=crudo[n-1], h=(b.ts-a.ts)/3600000; return h>0 && h<0.004? haversine(a,b)/h : velocidadCorta()||0; }
 function velocidadCorta(){            // km/h de los últimos ~12 s (responde rápido)
   const now=Date.now(); if(!crudo.length || now-crudo[crudo.length-1].ts>15000) return gpsState==='on'? 0 : null;
   const w=crudo.filter(p=>p.ts>=now-12000); if(w.length<2) return 0;
@@ -2472,7 +2487,7 @@ function segundosDetenido(){
 
 /* ---- Letrero de calle (estilo nomenclatura CDMX, con emblemas genéricos) ---- */
 function letreroHTML(){
-  const d=dirActual, alc=(d&&d.alcaldia)|| (ultimaPos? alcaldiaDe(ultimaPos):'') || '';
+  const d=VISITA? VISITA.dir : dirActual, alc=(d&&d.alcaldia)|| (VISITA? alcaldiaDe(VISITA) : ultimaPos? alcaldiaDe(ultimaPos):'') || '';
   const nombre = d&&d.calle? d.calle.replace(/^\s*calle\s+/i,'') : ultimaPos? 'Sin nombre' : 'Buscando…';   // sin la palabra «Calle»: el nombre se ve más grande
   const sub=[d&&d.colonia? 'COL. '+d.colonia : '', alc? 'ALC. '+alc : '', d&&d.cp? 'C.P. '+d.cp : ''].filter(Boolean).join('\u00a0\u00a0\u00a0');
   const tam=32;   // tamaño fijo y grande; si no cabe, el nombre se recorre de derecha a izquierda
@@ -2535,6 +2550,84 @@ let TIRAS=null;
 function tiras(){ if(!TIRAS) TIRAS={ edD:tiraEdificios(false), edN:tiraEdificios(true), caD:tiraCasas(false), caN:tiraCasas(true), cbD:tiraCasas(false,true), cbN:tiraCasas(true,true), viD:tiraVia(false), viN:tiraVia(true), vdD:tiraViaducto(false), vdN:tiraViaducto(true) }; return TIRAS; }
 /* ¿Voy por Salvador Allende, Col. Las Peñas, Iztapalapa? (por dirección; y, una vez detectada, también por cercanía) */
 const LS_CASA='bitacoraUber.puntoSalvadorAllende';
+/* =================== Radar de fotomultas (Ermita · estación Tulipán del Trolebús Elevado) ===================
+   Aviso grande 100 m antes; al pasarlo, si ibas a más de 50 km/h, avisa que te tomó la foto. */
+const LS_RADAR='bitacoraUber.radarTulipan', RADAR_LIM=50;
+const RADAR_EST={lat:19.34668, lon:-99.05770, fuente:'aprox'};   // aproximado; se afina con OpenStreetMap o a mano
+const RAD={estado:'lejos', dmin:Infinity, vmin:0, dAnt:null, fotoTs:0, buscado:false};
+function radarPos(){ try{ const r=JSON.parse(localStorage.getItem(LS_RADAR)||'null'); if(r && isFinite(r.lat) && isFinite(r.lon)) return r; }catch(e){} return RADAR_EST; }
+async function radarBuscarOSM(){
+  if(RAD.buscado || enClaude() || !conInternet()) return; RAD.buscado=true;
+  const r0=radarPos(); if(r0.fuente==='manual' || r0.fuente==='osm') return;
+  try{
+    const c=EST_CONSTITUCION, q=`[out:json][timeout:25];(node["name"~"tulip",i](around:3500,${c.lat},${c.lon});way["name"~"tulip",i]["public_transport"](around:3500,${c.lat},${c.lon});way["name"~"tulip",i]["railway"](around:3500,${c.lat},${c.lon}););out center tags;`;
+    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
+    if(!r.ok) return; const d=await r.json();
+    const cand=(d.elements||[]).map(e=>({lat:e.lat??e.center?.lat, lon:e.lon??e.center?.lon, t:e.tags||{}}))
+      .filter(e=>isFinite(e.lat) && (e.t.public_transport || e.t.railway || e.t.trolleybus || e.t.highway==='bus_stop' || e.t.amenity==='bus_station'))
+      .map(e=>({...e, pr:(e.t.public_transport==='station'||e.t.railway==='station'?0:1)+haversine(e,RADAR_EST)}))
+      .sort((a,b)=>a.pr-b.pr);
+    if(cand.length && haversine(cand[0],RADAR_EST)<1.5) localStorage.setItem(LS_RADAR, JSON.stringify({lat:+cand[0].lat.toFixed(6), lon:+cand[0].lon.toFixed(6), fuente:'osm'}));
+  }catch(e){ RAD.buscado=false; }
+}
+function radarUI(){
+  let o=$('#radarAviso');
+  if(!o){ o=document.createElement('div'); o.id='radarAviso'; o.setAttribute('role','alert'); o.setAttribute('aria-live','assertive'); document.body.appendChild(o); o.onclick=()=>o.className=''; }
+  return o;
+}
+function radarPitido(n, agudo){
+  try{ const A=window.AudioContext||window.webkitAudioContext; if(!A) return; const ac=radarPitido.ac||(radarPitido.ac=new A());
+    for(let i=0;i<n;i++){ const o=ac.createOscillator(), g=ac.createGain(), t=ac.currentTime+i*0.32; o.frequency.value=agudo?1250:880; o.type='square';
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.25,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.22); o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.25); } }catch(e){}
+}
+function radarMostrar(tipo, v, d){
+  const o=radarUI(); clearTimeout(radarMostrar._t);
+  if(tipo==='aviso'){
+    o.className='on aviso';
+    o.innerHTML=`<div class="ra-big">📸 RADAR A 100 METROS</div><div class="ra-sub">Límite ${RADAR_LIM} km/h · vas a <b>${v!=null?Math.round(v):'—'} km/h</b>${d!=null?' · faltan '+Math.max(0,Math.round(d))+' m':''}</div>`;
+  } else if(tipo==='foto'){
+    o.className='on foto';
+    o.innerHTML=`<div class="ra-big">📸 ¡EL RADAR TE TOMÓ LA FOTO!</div><div class="ra-sub">Pasaste a <b>${Math.round(v)} km/h</b> · el límite es ${RADAR_LIM} km/h</div>`;
+    radarMostrar._t=setTimeout(()=>o.className='',10000);
+  } else if(tipo==='ok'){
+    o.className='on ok';
+    o.innerHTML=`<div class="ra-big">✅ Pasaste el radar</div><div class="ra-sub">a ${Math.round(v)} km/h · sin foto</div>`;
+    radarMostrar._t=setTimeout(()=>o.className='',4000);
+  } else o.className='';
+}
+function radarCheck(pt, vKmh){
+  const r=radarPos(), d=haversine(pt,r)*1000, prev=RAD.dAnt; RAD.dAnt=d;
+  if(!RAD.buscado && d<4000) radarBuscarOSM();
+  if(d>250){ if(RAD.estado==='aviso') radarMostrar('nada'); RAD.estado='lejos'; RAD.dmin=Infinity; return; }
+  if(RAD.estado==='lejos' && d<=110 && d>=25 && prev!=null && d<prev-0.5 && (vKmh||0)>5){
+    RAD.estado='aviso'; RAD.dmin=d; RAD.vmin=vKmh||0; radarPitido(3); try{ navigator.vibrate&&navigator.vibrate([250,120,250,120,250]); }catch(e){} }
+  if(RAD.estado==='aviso'){
+    if(d<RAD.dmin){ RAD.dmin=d; RAD.vmin=vKmh||0; } else if(d<RAD.dmin+3) RAD.vmin=Math.max(RAD.vmin, vKmh||0);
+    if(RAD.dmin<45 && d>RAD.dmin+12){
+      RAD.estado='pasado';
+      if(RAD.vmin>RADAR_LIM){ RAD.fotoTs=Date.now(); radarMostrar('foto', RAD.vmin); radarPitido(5,true); try{ navigator.vibrate&&navigator.vibrate([700,150,700]); }catch(e){}
+        const j=jornadaActiva(); if(j){ (j.radar||(j.radar=[])).push({ts:Date.now(), vel:Math.round(RAD.vmin)}); jornadas[j.id]=j; saveLocal(); } }
+      else radarMostrar('ok', RAD.vmin);
+    } else radarMostrar('aviso', vKmh, d);
+  }
+}
+function radarCardHTML(){
+  const r=radarPos(), f={aprox:'aproximada (falta afinarla)', osm:'estación Tulipán según OpenStreetMap', manual:'puesta por ti'}[r.fuente]||'';
+  return `<div class="card"><h2>📸 Radar de fotomultas</h2>
+    <p class="sec" style="margin-top:0">Ermita Iztapalapa, a la altura de la estación Tulipán del Trolebús Elevado. Te aviso 100 m antes y te digo si pasaste a más de ${RADAR_LIM} km/h.</p>
+    <div class="muted" id="radInfo">Ubicación: ${f} · ${r.lat.toFixed(5)}, ${r.lon.toFixed(5)}</div>
+    <button class="btn sec2 small" id="radAqui">📍 El radar está aquí (donde estoy ahora)</button>
+    <button class="btn sec2 small" id="radProbar">🔔 Probar el aviso</button>
+    ${r.fuente==='manual'?'<button class="btn sec2 small" id="radReset">↺ Volver a la ubicación de la estación</button>':''}</div>`;
+}
+function conectarRadar(){
+  const a=$('#radAqui'), p=$('#radProbar'), z=$('#radReset'); if(!a) return;
+  a.onclick=()=>{ if(!ultimaPos){ toast('Primero activa el GPS'); return; }
+    if(haversine(ultimaPos,RADAR_EST)>3){ toast('Estás lejos de Ermita y Tulipán (más de 3 km)'); return; }
+    localStorage.setItem(LS_RADAR, JSON.stringify({lat:ultimaPos.lat, lon:ultimaPos.lon, fuente:'manual'})); toast('Radar colocado aquí ✔'); if(C3D) C3D.datos=null; render(); };
+  p.onclick=()=>{ radarPitido(3); radarMostrar('aviso', 47, 100); setTimeout(()=>{ radarPitido(5,true); radarMostrar('foto', 63); }, 3500); };
+  if(z) z.onclick=()=>{ localStorage.removeItem(LS_RADAR); RAD.buscado=false; radarBuscarOSM().then(()=>render()); render(); };
+}
 const sinAcentos = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 function enSalvadorAllende(){
   const pos=ultimaPos; if(!pos) return false;
@@ -2607,17 +2700,17 @@ function actualizarEscena(j){
     const vc=gpsState==='on'? velocidadCorta() : null, pl=posicionPorVelocidad(vc);
     const c=$('#escCoche'); if(c) c.style.left=`calc(${pl}% - 26px)`;
     const tr=$('#escTraf'); if(tr) tr.style.left=`calc(${pl}% - 26px)`;
-    info = j? '🚗 Sin viaje en curso' : '🚗 Sin jornada iniciada';
-    if(vc!=null) info+=` · ${fmtNum(vc,0)} km/h`;
+    info = VISITA? '🧭 Viendo '+esc(VISITA.nombre) : j? '🚗 Sin viaje en curso' : '🚗 Sin jornada iniciada';
+    if(VISITA){} else if(vc!=null) info+=` · ${fmtNum(vc,0)} km/h`;
     else if(gpsState!=='on') info+=' · <span class="muted">sin GPS: el paisaje se mueve de muestra</span>';
   }
   e.classList.toggle('parado', det>=3 || llego); e.classList.toggle('rojo', det>=10 && !llego);
   const nivel=nivelTrafico(det); e.classList.toggle('pesado', nivel==='pesado'); armarTrafico(e, nivel, zonaTrafico(), cx);
   if(vista3D && window.Vista3D){ const est=estado3D(j, det, llego, nivel, cx); Vista3D.actualizar(est);
-    if(ultimaPos) pedirCalles3D(ultimaPos); fuente3D();
+    { const pc=VISITA||ultimaPos; if(pc) pedirCalles3D(pc); } fuente3D();
     const ab=$('#v3ab'); if(ab){ ab.hidden=!(est.viaje && est.pct!=null); if(!ab.hidden){ $('#v3prog').style.width=(est.pct*100).toFixed(1)+'%'; $('#v3auto').style.left=(est.pct*100).toFixed(1)+'%'; } } }
   if(det>=10 && !llego) iniciarPeatones();
-  if(det>=10 && !llego) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
+  if(det>=10 && !llego && !VISITA) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
   const ai=$('#avInfo'); if(ai && ai.dataset.h!==info){ ai.dataset.h=info; ai.innerHTML=info; }
   const ac=$('#avActs'); if(ac && ac.dataset.h!==acts){ ac.dataset.h=acts; ac.innerHTML=acts; }
   pintarLetrero();
@@ -2961,6 +3054,9 @@ function nodoEscena(){
 /* ---- Calles reales para la vista 3D (OpenStreetMap o el mapa guardado en el teléfono) ---- */
 const C3D={datos:null, cargando:false, intento:0, fuente:''};
 const VIA_RX='^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|service)$';
+// carriles: los del mapa; el Eje 5 lleva 6 (3 por sentido), como se ve en la calle
+const esEje5 = txt => /\beje\s*5\b/.test(sinAcentos(txt));
+function carrilesVia(t, ejeRef, oneway){ if(esEje5((t.name||'')+' '+(t.ref||'')+' '+(ejeRef||''))) return 6; const n=parseFloat(t.lanes); return n>0? n : null; }
 async function callesOverpass(c){
   const q=`[out:json][timeout:25];(way["highway"~"${VIA_RX}"](around:650,${c.lat},${c.lon});way["building"](around:330,${c.lat},${c.lon});way["railway"~"^(subway|light_rail)$"](around:1200,${c.lat},${c.lon}););out tags geom;`;
   const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
@@ -2968,8 +3064,8 @@ async function callesOverpass(c){
   const d=await r.json(), out={centro:{lat:c.lat,lon:c.lon}, calles:[], edificios:[], rieles:[], fuente:'OpenStreetMap'};
   for(const w of d.elements||[]){
     const t=w.tags||{}, g=(w.geometry||[]).map(p=>[p.lat,p.lon]); if(g.length<2) continue;
-    if(t.highway){ const carr=parseFloat(t.lanes);
-      out.calles.push({pts:g, tipo:t.highway, nombre:t.name||'', oneway: t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}); }
+    if(t.highway){ const ow=t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', carr=carrilesVia(t,'',ow);
+      out.calles.push({pts:g, tipo:t.highway, nombre:t.name||'', ref:t.ref||'', oneway: ow, carriles: carr, ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}); }
     else if(t.building){ const h=parseFloat(t.height) || (t['building:levels']? parseFloat(t['building:levels'])*3.2 : 0); out.edificios.push({pts:g, h:h||null, id:String(w.id)}); }
     else if(t.railway){ if(t.tunnel==='yes' || parseFloat(t.layer)<0 || t.location==='underground') continue;
       out.rieles.push({pts:g, elevado: !!t.bridge && t.bridge!=='no' || parseFloat(t.layer)>0}); }
@@ -3027,7 +3123,7 @@ function completarMetro(d, c){
 
 /* ---- Zonas de calles 3D guardadas en el teléfono (IndexedDB) ----
    La ciudad se divide en cuadros de ~650 m. Cada cuadro se descarga una sola vez y queda guardado. */
-const ZONA=0.006, ZONA_VIEJA=90*864e5;
+const ZONA=0.006, ZONA_VIEJA=90*864e5, CELDA_V=2;   // v2: trae ejes viales y carriles
 const idb3d=(()=>{ let p; return ()=> p||(p=new Promise((ok,mal)=>{ const r=indexedDB.open('bitacora-calles3d',1);
   r.onupgradeneeded=()=>r.result.createObjectStore('celdas'); r.onsuccess=()=>ok(r.result); r.onerror=()=>{ p=null; mal(r.error); }; })); })();
 async function celdaLeer(k){ try{ const db=await idb3d(); return await new Promise(ok=>{ const r=db.transaction('celdas').objectStore('celdas').get(k); r.onsuccess=()=>ok(r.result||null); r.onerror=()=>ok(null); }); }catch(e){ return null; } }
@@ -3043,15 +3139,18 @@ async function descargarCeldas(lista){
   if(!lista.length) return 0;
   const is=lista.map(c=>c[0]), js=lista.map(c=>c[1]);
   const S=Math.min(...is)*ZONA, N=(Math.max(...is)+1)*ZONA, W=Math.min(...js)*ZONA, Ee=(Math.max(...js)+1)*ZONA, bb=`${S.toFixed(6)},${W.toFixed(6)},${N.toFixed(6)},${Ee.toFixed(6)}`;
-  const q=`[out:json][timeout:60];(way["highway"~"${VIA_RX}"](${bb});way["building"](${bb});way["railway"~"^(subway|light_rail)$"](${bb}););out tags geom;`;
+  const q=`[out:json][timeout:60];(way["highway"~"${VIA_RX}"](${bb});way["building"](${bb});way["railway"~"^(subway|light_rail)$"](${bb}););out tags geom;way["highway"~"${VIA_RX}"](${bb})->.h;rel(bw.h)["route"="road"];out body;`;
   const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
   if(!r.ok) throw new Error('overpass '+r.status);
-  const d=await r.json(), cajas={};
-  for(const [i,j] of lista) cajas[claveCelda(i,j)]={ts:Date.now(), v:1, calles:[], edificios:[], rieles:[]};
+  const d=await r.json(), cajas={}, ejeDe={};
+  for(const [i,j] of lista) cajas[claveCelda(i,j)]={ts:Date.now(), v:CELDA_V, calles:[], edificios:[], rieles:[]};
+  // ejes viales (relaciones de OpenStreetMap): qué tramos son, por ejemplo, el Eje 5 Sur
+  for(const e of d.elements||[]) if(e.type==='relation'){ const tg=e.tags||{}, nm=tg.ref||tg.name||''; if(!/eje/i.test(nm+' '+(tg.network||''))) continue; for(const m of e.members||[]) if(m.type==='way') ejeDe[m.ref]=(tg.name||'')+' '+(tg.ref||''); }
   for(const w of d.elements||[]){
     const t=w.tags||{}, g=(w.geometry||[]).map(p=>[r6(p.lat),r6(p.lon)]); if(g.length<2) continue;
     let o, tipo;
-    if(t.highway){ const carr=parseFloat(t.lanes); tipo='calles'; o={id:w.id, pts:g, tipo:t.highway, nombre:t.name||'', oneway: t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}; }
+    if(w.type && w.type!=='way') continue;
+    if(t.highway){ const ow=t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', eje=ejeDe[w.id]||'', carr=carrilesVia(t,eje,ow); tipo='calles'; o={id:w.id, pts:g, tipo:t.highway, nombre:t.name||'', ref:((t.ref||'')+' '+eje).trim(), oneway: ow, carriles: carr, ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}; }
     else if(t.building){ tipo='edificios'; const h=parseFloat(t.height) || (t['building:levels']? parseFloat(t['building:levels'])*3.2 : 0); o={id:w.id, pts:g, h:h||null}; }
     else if(t.railway){ if(t.tunnel==='yes' || parseFloat(t.layer)<0 || t.location==='underground') continue; tipo='rieles'; o={id:w.id, pts:g, elevado: !!t.bridge && t.bridge!=='no' || parseFloat(t.layer)>0}; }
     else continue;
@@ -3069,7 +3168,7 @@ async function callesGuardadas(c, conRed){
   const [ci,cj]=celdaDe(c.lat,c.lon), cel=[];
   for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++) cel.push([i,j]);
   const datos={}, faltan=[], viejas=[];
-  for(const [i,j] of cel){ const v=await celdaLeer(claveCelda(i,j)); if(v) datos[claveCelda(i,j)]=v; else faltan.push([i,j]); if(v && Date.now()-v.ts>ZONA_VIEJA) viejas.push([i,j]); }
+  for(const [i,j] of cel){ const v=await celdaLeer(claveCelda(i,j)); if(v) datos[claveCelda(i,j)]=v; else faltan.push([i,j]); if(v && (Date.now()-v.ts>ZONA_VIEJA || (v.v||1)<CELDA_V)) viejas.push([i,j]); }
   let descargadas=0;
   if(faltan.length && conRed){
     if(!zonasPersist && navigator.storage && navigator.storage.persist){ zonasPersist=true; navigator.storage.persist().catch(()=>{}); }
@@ -3084,11 +3183,12 @@ async function callesGuardadas(c, conRed){
     for(const tipo of ['calles','edificios','rieles']) for(const o of v[tipo]||[]){
       const k=tipo[0]+o.id; if(vistos.has(k)) continue; vistos.add(k);
       if(tipo==='edificios'){ if(haversine({lat:c.lat,lon:c.lon},{lat:o.pts[0][0],lon:o.pts[0][1]})>0.42) { vistos.delete(k); continue; } out.edificios.push({...o, id:String(o.id)}); }
+      else if(tipo==='calles' && !o.carriles && esEje5((o.nombre||'')+' '+(o.ref||''))){ out.calles.push({...o, carriles:6, ancho:19.2}); }
       else out[tipo].push(o);
     }
   }
   // cuadros con más de 90 días: se actualizan después, sin prisa
-  if(conRed && viejas.length && !descargadas) setTimeout(()=>descargarCeldas(viejas).catch(()=>{}), 4000);
+  if(conRed && viejas.length && !descargadas) setTimeout(()=>descargarCeldas(viejas).then(()=>{ if(C3D.datos && C3D.datos.fuente==="guardadas") C3D.datos=null; }).catch(()=>{}), 4000);
   return out;
 }
 // Guardar de una vez la zona alrededor (por ejemplo en casa con Wi-Fi)
@@ -3128,6 +3228,104 @@ function conectarZonas3D(){
     g.disabled=true; try{ await guardarZonaAlrededor(2, t=>{ if(pr) pr.textContent=t; }); }catch(e){ if(pr) pr.textContent=e.message||'No se pudo guardar'; } g.disabled=false; pintarZonas3D(); };
   bo.onclick=async()=>{ if(!confirm('¿Borrar todas las calles 3D guardadas en este teléfono?')) return; await celdasBorrar(); C3D.datos=null; pintarZonas3D(); toast('Calles 3D borradas'); };
 }
+/* ---- Eje 5 Sur: de Periférico Oriente a San Antonio es de UN sentido (6 carriles, hacia el poniente).
+   Lunes a viernes de 18:30 a 21:00 el tramo de San Antonio a Canal Río Churubusco es reversible (va al oriente). ---- */
+const EJE5_CHURUBUSCO_LON=-99.0945;   // cruce aproximado con Canal Río Churubusco (si no viene en los datos)
+function eje5Reversible(t=new Date()){ const d=t.getDay(), m=t.getHours()*60+t.getMinutes(); return d>=1 && d<=5 && m>=18*60+30 && m<21*60; }
+function esTramoEje5(k){ const txt=sinAcentos((k.nombre||'')+' '+(k.ref||''));
+  return esEje5(txt) || (/^(primary|secondary|trunk|tertiary)/.test(k.tipo||'') && /leyes de reforma|santa maria la purisima/.test(txt)); }
+function prepararMapa(d){
+  const rev=eje5Reversible(), ejes=d.calles.filter(esTramoEje5);
+  if(!ejes.length) return d;
+  // dónde cruza Canal Río Churubusco (si está en los datos)
+  let lonCh=EJE5_CHURUBUSCO_LON;
+  const chu=d.calles.filter(k=>/churubusco|circuito interior/.test(sinAcentos(k.nombre||'')));
+  outer: for(const e of ejes) for(const q of e.pts) for(const k of chu) if(distPolyKm({lat:q[0],lon:q[1]},k.pts)<0.04){ lonCh=q[1]; break outer; }
+  const calles=d.calles.map(k=>{
+    if(!esTramoEje5(k)) return k;
+    const a=k.pts[0], b=k.pts[k.pts.length-1], mid=k.pts[Math.floor(k.pts.length/2)];
+    const alOriente = rev && mid[1] < lonCh;              // reversible: de San Antonio hacia Río Churubusco
+    const vaAlOriente = b[1] > a[1];
+    const pts = vaAlOriente===alOriente ? k.pts : k.pts.slice().reverse();
+    return {...k, pts, oneway:true, carriles:6, ancho:19.2, sentido: alOriente? 'reversible' : 'normal'};
+  });
+  return {...d, calles, eje5Rev: rev};
+}
+let eje5RevAnt=null;
+setInterval(()=>{ const r=eje5Reversible(); if(eje5RevAnt!==null && r!==eje5RevAnt && C3D.datos && window.Vista3D && vista3D) Vista3D.mapa(prepararMapa(C3D.datos)); eje5RevAnt=r; }, 60000);
+/* =================== Ir a… (solo sin jornada): ver en 3D cómo se ve otra dirección =================== */
+let VISITA=null;   // {lat, lon, nombre, dir, ts}
+const LS_IRA='bitacoraUber.irRecientes', CDMX_BB='19.04,-99.37,19.60,-98.94';
+function limpiarDir(t){
+  return sinAcentos(t).replace(/[^\w\s#ñ.-]/g,' ').replace(/\b(ote)\b\.?/g,'oriente').replace(/\b(pte)\b\.?/g,'poniente').replace(/\b(nte)\b\.?/g,'norte')
+    .replace(/\bcalz\b\.?/g,'calzada').replace(/\b(av|avenida|calle|c)\b\.?/g,' ').replace(/\s+/g,' ').trim();
+}
+function rxNombre(t){   // tolera acentos y mayúsculas: «rio churubusco» encuentra «Río Churubusco»
+  const A={a:'[aá]',e:'[eé]',i:'[ií]',o:'[oó]',u:'[uúü]',n:'[nñ]'};
+  return limpiarDir(t).split(' ').filter(Boolean).map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'').replace(/[aeioun]/g,v=>A[v])).join('.*');
+}
+async function buscarCruce(a,b){
+  const ra=rxNombre(a), rb=rxNombre(b); if(!ra||!rb) return null;
+  const sel=r=>`way["highway"]["name"~"${r}",i](${CDMX_BB});way["highway"]["ref"~"${r}",i](${CDMX_BB});rel["route"="road"]["name"~"${r}",i](${CDMX_BB});rel["route"="road"]["ref"~"${r}",i](${CDMX_BB});`;
+  const q=`[out:json][timeout:40];(${sel(ra)})->.ra;(way.ra;way(r.ra)["highway"];)->.a;(${sel(rb)})->.rb;(way.rb;way(r.rb)["highway"];)->.b;node(w.a)(w.b);out;`;
+  const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)});
+  if(!r.ok) throw new Error('El buscador de calles no respondió ('+r.status+'). Intenta en un momento.');
+  const d=await r.json(), ns=(d.elements||[]).filter(e=>e.type==='node');
+  if(!ns.length) return null;
+  const ref=ultimaPos||{lat:19.36,lon:-99.08}; ns.sort((x,y)=>haversine(ref,x)-haversine(ref,y));
+  const g=ns.filter(n=>haversine(n,ns[0])<0.12);   // un cruce de avenidas tiene varios nodos: su centro
+  return {lat:g.reduce((s,n)=>s+n.lat,0)/g.length, lon:g.reduce((s,n)=>s+n.lon,0)/g.length};
+}
+async function buscarDireccion(t){
+  const u=`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&countrycodes=mx&viewbox=-99.37,19.60,-98.94,19.04&bounded=1&q=${encodeURIComponent(t+', Ciudad de México')}`;
+  const r=await fetch(u); if(!r.ok) throw new Error('El buscador de direcciones no respondió. Intenta en un momento.');
+  const d=await r.json(); return d&&d[0]? {lat:+d[0].lat, lon:+d[0].lon} : null;
+}
+async function irA(texto){
+  const t=texto.trim(); if(!t) throw new Error('Escribe una dirección o un cruce.');
+  const partes=t.split(/\s+(?:y|e|esq(?:uina)?\.?|con|&)\s+|\s*\/\s*/i).filter(Boolean);
+  let p=null;
+  if(partes.length>=2) p=await buscarCruce(partes[0], partes[1]);
+  if(!p) p=await buscarDireccion(t);
+  if(!p && partes.length>=2) p=await buscarDireccion(partes[0]+' y '+partes[1]);
+  if(!p) throw new Error('No encontré esa dirección. Prueba con el nombre completo de las calles, por ejemplo «Eje 3 Oriente y Río Churubusco».');
+  const bonito=t.replace(/\s+/g,' ');
+  VISITA={lat:+p.lat.toFixed(6), lon:+p.lon.toFixed(6), nombre:bonito, dir:{calle:partes[0]||bonito}, ts:Date.now()};
+  try{ const rec=JSON.parse(localStorage.getItem(LS_IRA)||'[]').filter(x=>x.toLowerCase()!==bonito.toLowerCase()); rec.unshift(bonito); localStorage.setItem(LS_IRA, JSON.stringify(rec.slice(0,6))); }catch(e){}
+  reverso({lat:VISITA.lat, lon:VISITA.lon}, partes[0]).then(d=>{ if(VISITA && d){ VISITA.dir=d; pintarLetrero(); } }).catch(()=>{});
+  C3D.intento=0;
+  if(!vista3D) ponerVista('3d');
+  renderJornada();
+}
+function salirVisita(){ VISITA=null; C3D.intento=0; renderJornada(); }
+function irAHTML(){
+  if(enClaude()) return '';
+  return VISITA? `<div class="visita-bar">🧭 Viendo: <b>${esc(VISITA.nombre)}</b></div><button class="btn sec2 small" id="btnVolverVisita">✕ Volver a mi ubicación</button><button class="btn sec2 small" id="btnIrA">🧭 Ir a otra dirección…</button>`
+    : `<button class="btn sec2 small" id="btnIrA">🧭 Ir a…</button>`;
+}
+function conectarIrA(){
+  const v=$('#btnVolverVisita'); if(v) v.onclick=salirVisita;
+  const b=$('#btnIrA'); if(!b) return;
+  b.onclick=()=>{
+    let rec=[]; try{ rec=JSON.parse(localStorage.getItem(LS_IRA)||'[]'); }catch(e){}
+    openModal(`<h3>🧭 Ir a…</h3>
+      <p class="sec" style="margin-top:0">Escribe un cruce o una dirección de la CDMX y te muestro en la vista 3D cómo se ve.</p>
+      <label for="iraTxt" class="muted">Dirección o cruce</label>
+      <input id="iraTxt" type="text" autocomplete="off" placeholder="Ej. Eje 3 Oriente y Río Churubusco" style="width:100%;font-size:18px;padding:12px;border-radius:10px">
+      ${rec.length? `<div class="muted" style="margin-top:10px">Recientes</div><div class="ira-rec">${rec.map(r=>`<button class="chip" data-rec="${esc(r)}">${esc(r)}</button>`).join('')}</div>`:''}
+      <p id="iraMsg" class="muted" role="status" style="min-height:1.4em"></p>
+      <button class="btn go" id="iraOk">Ir</button><button class="btn sec2" id="iraNo">Cancelar</button>`, sh=>{
+      const inp=sh.querySelector('#iraTxt'), msg=sh.querySelector('#iraMsg'), ok=sh.querySelector('#iraOk');
+      const ir=async()=>{ if(!conInternet()){ msg.textContent='Necesitas internet para buscar la dirección.'; return; }
+        ok.disabled=true; msg.textContent='Buscando…';
+        try{ await irA(inp.value); closeModal(); toast('Mostrando '+VISITA.nombre); }catch(e){ msg.textContent=e.message||'No se pudo buscar.'; }
+        ok.disabled=false; };
+      ok.onclick=ir; inp.onkeydown=e=>{ if(e.key==='Enter') ir(); };
+      sh.querySelector('#iraNo').onclick=closeModal;
+      sh.querySelectorAll('[data-rec]').forEach(x=>x.onclick=()=>{ inp.value=x.dataset.rec; ir(); });
+    });
+  };
+}
 async function pedirCalles3D(c){
   if(C3D.cargando || !window.Vista3D) return;
   if(C3D.datos && haversine(C3D.datos.centro,{lat:c.lat,lon:c.lon})<0.3) return;
@@ -3138,7 +3336,7 @@ async function pedirCalles3D(c){
     try{ d=await callesGuardadas(c, conInternet()); }catch(e){ d=null; }        // primero lo guardado; solo baja lo que falta
     if(d && d.faltan && MO){ try{ const m=await callesMapaTelefono(c); if(m && m.calles.length>d.calles.length) d=m; }catch(e){} }
     if(!d && MO){ try{ d=await callesMapaTelefono(c); }catch(e){ d=null; } }
-    if(d){ completarMetro(d,c); try{ d.casa=JSON.parse(localStorage.getItem(LS_CASA)); }catch(e){} C3D.datos=d; C3D.fuente=d.fuente; Vista3D.mapa(d); }
+    if(d){ completarMetro(d,c); try{ d.casa=JSON.parse(localStorage.getItem(LS_CASA)); }catch(e){} d.radar=radarPos(); C3D.datos=d; C3D.fuente=d.fuente; eje5RevAnt=eje5Reversible(); Vista3D.mapa(prepararMapa(d)); }
   } finally { C3D.cargando=false; fuente3D(); }
 }
 function fuente3D(){
@@ -3182,12 +3380,12 @@ function aplicarVista(){
 }
 function estado3D(j, det, llego, nivel, cx){
   const va=j&&j.viajeActivo, p=va? progresoViaje(j) : null;
-  return { pos: ultimaPos? {lat:ultimaPos.lat, lon:ultimaPos.lon, ts:ultimaPos.ts||0} : null,
+  return { pos: VISITA? {lat:VISITA.lat, lon:VISITA.lon, ts:VISITA.ts} : ultimaPos? {lat:ultimaPos.lat, lon:ultimaPos.lon, ts:ultimaPos.ts||0} : null,
     metroSint: cx && cx.metro? cx.metro : (enCalzadaTlalpan()? 's' : null), metro8: !!(cx && cx.metro8),
     metrobus: !!(cx && cx.metrobus), troleElev: !!(cx && cx.troleElev),
     viaje:!!va, pct: p&&p.pct!=null? Math.min(1,p.pct) : null, dist: p&&p.dist? p.dist : null,
-    vel: gpsState==='on'? velocidadCorta() : null, nivel, noche: esDeNoche(), rojo: det>=10 && !llego, llego: !!llego,
-    zona: zonaTrafico(), pico: !!(cx && cx.perif && horaPicoPerif()) };
+    vel: VISITA? 0 : gpsState==='on'? velocidadCorta() : null, nivel, noche: esDeNoche(), rojo: !VISITA && det>=10 && !llego, llego: !!llego,
+    zona: zonaTrafico(), pico: !!(cx && cx.perif && horaPicoPerif()), foto: RAD.fotoTs };
 }
 const escenaSlotHTML = () => `<div id="escenaSlot"></div><button class="btn sec2 small" data-pantalla="1">⛶ Ver a pantalla completa</button>`;
 function montarEscena(){
@@ -3396,17 +3594,17 @@ function renderJornada(){
         <p class="sec" style="margin-top:0">Te pediré el odómetro, la batería y la autonomía, un dato por pantalla.</p>
         <button class="btn go" id="btnIniciar" style="padding:22px;font-size:20px">▶ Iniciar jornada</button>
       </div>
-      <div class="card">${escenaSlotHTML()}</div>
+      <div class="card">${escenaSlotHTML()}${irAHTML()}</div>
       ${cargaCardHTML()}
       ${mapaCardHTML(null)}
       ${ult? resumenCard(ult,'Última jornada') : '<div class="card empty">Aún no hay jornadas registradas.</div>'}`;
     $('#btnIniciar').onclick=()=>flujoIniciarJornada(ult);
     conectarCargaCard();
-    $('#btnUbic').onclick=()=>accionUbicacion(null); conectarMapaModo(null); montarEscena();
+    $('#btnUbic').onclick=()=>accionUbicacion(null); conectarMapaModo(null); montarEscena(); conectarIrA();
     clearInterval(tick); tick=setInterval(actualizarEnVivo,1000);
     return;
   }
-  startGPS();
+  startGPS(); if(VISITA){ VISITA=null; C3D.intento=0; }
   const s=statsJornada(j); const va=j.viajeActivo;
   const viajesDesc=[...j.viajes].sort((a,b)=>b.inicio-a.inicio);
   v.innerHTML=`
@@ -3617,9 +3815,10 @@ function renderHistorial(){
     ${mapaOfflineCardHTML()}
     ${zonas3DCardHTML()}
     ${tomtomCardHTML()}
+    ${radarCardHTML()}
     ${monitorCardHTML()}
     <div class="muted" style="text-align:center;font-size:12px;margin:14px 0 4px">Bitácora Uber · versión ${APP_VERSION}</div>`;
-  conectarMonitorCard(); conectarMapaOfflineCard(); conectarZonas3D(); conectarTomTom();
+  conectarMonitorCard(); conectarMapaOfflineCard(); conectarZonas3D(); conectarTomTom(); conectarRadar();
   v.querySelectorAll('[data-j]').forEach(d=>d.onclick=()=>{ const j=jornadas[d.dataset.j];
     const viajes=[...j.viajes].sort((a,b)=>tripRate(b)-tripRate(a)); const mx=viajes.length?tripRate(viajes[0]):0;
     openModal(resumenCard(j,'Detalle')+(rutasDeJornada(j).length? `<div class="card"><h2>🗺️ Recorridos del día</h2>${mapaCDMX(null,puntosDelDia(j),rutasDeJornada(j),true)}${leyendaRutas(j)}</div>`:'')+`<div class="card"><h2>Viajes (mejor a peor $/km) · ✎ para editar</h2>${viajes.map((t,i)=>tripRow(t,i+1,true,mx)).join('')||'<div class="empty">Sin viajes</div>'}</div>
