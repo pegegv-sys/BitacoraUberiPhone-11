@@ -3065,7 +3065,7 @@ async function callesOverpass(c){
   for(const w of d.elements||[]){
     const t=w.tags||{}, g=(w.geometry||[]).map(p=>[p.lat,p.lon]); if(g.length<2) continue;
     if(t.highway){ const ow=t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', carr=carrilesVia(t,'',ow);
-      out.calles.push({pts:g, tipo:t.highway, nombre:t.name||'', ref:t.ref||'', oneway: ow, carriles: carr, ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}); }
+      out.calles.push({pts:g, tipo:t.highway, nombre:t.name||'', ref:t.ref||'', oneway: ow, carriles: carr, puente: !!t.bridge && t.bridge!=='no', capa: parseFloat(t.layer)||0, ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}); }
     else if(t.building){ const h=parseFloat(t.height) || (t['building:levels']? parseFloat(t['building:levels'])*3.2 : 0); out.edificios.push({pts:g, h:h||null, id:String(w.id)}); }
     else if(t.railway){ if(t.tunnel==='yes' || parseFloat(t.layer)<0 || t.location==='underground') continue;
       out.rieles.push({pts:g, elevado: !!t.bridge && t.bridge!=='no' || parseFloat(t.layer)>0}); }
@@ -3089,7 +3089,7 @@ async function callesMapaTelefono(c){
         if(k==='rail'){ if(/subway|light_rail/.test(kd) && !p.is_tunnel) out.rieles.push({pts:g, elevado:!!p.is_bridge}); continue; }
         if(k==='path' || k==='other') continue;
         const tipo = k==='highway'? 'motorway' : k==='major_road'? (/trunk/.test(kd)?'trunk':'primary') : k==='medium_road'? (/tertiary/.test(kd)?'tertiary':'secondary') : /service/.test(kd)? 'service' : 'residential';
-        out.calles.push({pts:g, tipo, nombre:nombreDe(p), oneway: p.oneway==='yes'||p.oneway===true||k==='highway'}); } }
+        out.calles.push({pts:g, tipo, nombre:nombreDe(p), oneway: p.oneway==='yes'||p.oneway===true||k==='highway', puente: !!p.is_bridge}); } }
     const B=vt.layers.buildings; if(B && Math.abs(x-fx(c.lon))<1.6 && Math.abs(y-fy(c.lat))<1.6) for(let i=0;i<B.length && out.edificios.length<2500;i++){ const f=B.feature(i), p=f.properties||{}, ext=B.extent||4096;
       for(const parte of f.loadGeometry()){ if(parte.length<4) continue; const g=parte.map(q=>aGeo(x,y,ext,q));
         if(haversine({lat:c.lat,lon:c.lon},{lat:g[0][0],lon:g[0][1]})>0.36) continue;
@@ -3123,7 +3123,7 @@ function completarMetro(d, c){
 
 /* ---- Zonas de calles 3D guardadas en el teléfono (IndexedDB) ----
    La ciudad se divide en cuadros de ~650 m. Cada cuadro se descarga una sola vez y queda guardado. */
-const ZONA=0.006, ZONA_VIEJA=90*864e5, CELDA_V=2;   // v2: trae ejes viales y carriles
+const ZONA=0.006, ZONA_VIEJA=90*864e5, CELDA_V=3;   // v2: ejes viales y carriles · v3: puentes vehiculares
 const idb3d=(()=>{ let p; return ()=> p||(p=new Promise((ok,mal)=>{ const r=indexedDB.open('bitacora-calles3d',1);
   r.onupgradeneeded=()=>r.result.createObjectStore('celdas'); r.onsuccess=()=>ok(r.result); r.onerror=()=>{ p=null; mal(r.error); }; })); })();
 async function celdaLeer(k){ try{ const db=await idb3d(); return await new Promise(ok=>{ const r=db.transaction('celdas').objectStore('celdas').get(k); r.onsuccess=()=>ok(r.result||null); r.onerror=()=>ok(null); }); }catch(e){ return null; } }
@@ -3150,7 +3150,7 @@ async function descargarCeldas(lista){
     const t=w.tags||{}, g=(w.geometry||[]).map(p=>[r6(p.lat),r6(p.lon)]); if(g.length<2) continue;
     let o, tipo;
     if(w.type && w.type!=='way') continue;
-    if(t.highway){ const ow=t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', eje=ejeDe[w.id]||'', carr=carrilesVia(t,eje,ow); tipo='calles'; o={id:w.id, pts:g, tipo:t.highway, nombre:t.name||'', ref:((t.ref||'')+' '+eje).trim(), oneway: ow, carriles: carr, ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}; }
+    if(t.highway){ const ow=t.oneway==='yes'||t.highway==='motorway'||t.junction==='roundabout', eje=ejeDe[w.id]||'', carr=carrilesVia(t,eje,ow); tipo='calles'; o={id:w.id, pts:g, tipo:t.highway, nombre:t.name||'', ref:((t.ref||'')+' '+eje).trim(), oneway: ow, carriles: carr, puente: !!t.bridge && t.bridge!=='no', capa: parseFloat(t.layer)||0, ancho: carr? Math.max(5,Math.min(26,carr*3.2)) : null}; }
     else if(t.building){ tipo='edificios'; const h=parseFloat(t.height) || (t['building:levels']? parseFloat(t['building:levels'])*3.2 : 0); o={id:w.id, pts:g, h:h||null}; }
     else if(t.railway){ if(t.tunnel==='yes' || parseFloat(t.layer)<0 || t.location==='underground') continue; tipo='rieles'; o={id:w.id, pts:g, elevado: !!t.bridge && t.bridge!=='no' || parseFloat(t.layer)>0}; }
     else continue;
