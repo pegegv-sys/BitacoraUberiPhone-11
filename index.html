@@ -2707,10 +2707,11 @@ function actualizarEscena(j){
   e.classList.toggle('parado', det>=3 || llego); e.classList.toggle('rojo', det>=10 && !llego);
   const nivel=nivelTrafico(det); e.classList.toggle('pesado', nivel==='pesado'); armarTrafico(e, nivel, zonaTrafico(), cx);
   if(vista3D && window.Vista3D){ const est=estado3D(j, det, llego, nivel, cx); Vista3D.actualizar(est);
-    { const pc=VISITA||ultimaPos; if(pc) pedirCalles3D(pc); } fuente3D();
+    { const pc=EXPL||VISITA||ultimaPos; if(pc) pedirCalles3D(pc); } fuente3D();
     const ab=$('#v3ab'); if(ab){ ab.hidden=!(est.viaje && est.pct!=null); if(!ab.hidden){ $('#v3prog').style.width=(est.pct*100).toFixed(1)+'%'; $('#v3auto').style.left=(est.pct*100).toFixed(1)+'%'; } } }
   if(det>=10 && !llego) iniciarPeatones();
   if(det>=10 && !llego && !VISITA) info=`🔴 Detenido ${fmtCrono(det*1000)} · `+info;
+  if(EXPL) info='🧭 Explorando el mapa · «📍 Volver a mi carro» para regresar';
   const ai=$('#avInfo'); if(ai && ai.dataset.h!==info){ ai.dataset.h=info; ai.innerHTML=info; }
   const ac=$('#avActs'); if(ac && ac.dataset.h!==acts){ ac.dataset.h=acts; ac.innerHTML=acts; }
   pintarLetrero();
@@ -3293,7 +3294,7 @@ async function irA(texto){
   VISITA={lat:+p.lat.toFixed(6), lon:+p.lon.toFixed(6), nombre:bonito, dir:{calle:partes[0]||bonito}, ts:Date.now()};
   try{ const rec=JSON.parse(localStorage.getItem(LS_IRA)||'[]').filter(x=>x.toLowerCase()!==bonito.toLowerCase()); rec.unshift(bonito); localStorage.setItem(LS_IRA, JSON.stringify(rec.slice(0,6))); }catch(e){}
   reverso({lat:VISITA.lat, lon:VISITA.lon}, partes[0]).then(d=>{ if(VISITA && d){ VISITA.dir=d; pintarLetrero(); } }).catch(()=>{});
-  C3D.intento=0;
+  C3D.intento=0; try{ window.Vista3D && Vista3D.dejarDeExplorar && Vista3D.dejarDeExplorar(); }catch(e){}
   if(!vista3D) ponerVista('3d');
   renderJornada();
 }
@@ -3326,6 +3327,15 @@ function conectarIrA(){
     });
   };
 }
+// Explorar con los dedos en la vista 3D: baja las calles de la zona que vas recorriendo
+let EXPL=null;
+window.__v3Explorar=p=>{
+  EXPL=p;
+  const c=p || VISITA || ultimaPos; if(!c) return;
+  if(C3D.datos && haversine(C3D.datos.centro,{lat:c.lat,lon:c.lon})>=0.3) C3D.intento=0;
+  pedirCalles3D(c);
+  const i=$('#avInfo'); if(i && p){ const t='🧭 Explorando el mapa · «📍 Volver a mi carro» para regresar'; i.dataset.h=t; i.innerHTML=t; }
+};
 async function pedirCalles3D(c){
   if(C3D.cargando || !window.Vista3D) return;
   if(C3D.datos && haversine(C3D.datos.centro,{lat:c.lat,lon:c.lon})<0.3) return;
