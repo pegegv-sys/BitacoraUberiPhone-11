@@ -787,6 +787,7 @@ th{color:var(--text-muted);font-weight:500}
 @keyframes raFondo{50%{background:#8a0000}}
 .visita-bar{margin:8px 0 4px;padding:8px 10px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
 .ira-rec{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.ira-rec .chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:inherit;font-size:14px}
+.leaflet-container{isolation:isolate}   /* que los mapas 2D no se encimen sobre la pantalla completa ni los avisos */
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--surface-2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:14px;display:none;z-index:30;max-width:90%}
 .best{border:1px solid var(--series-1)}
 details summary{cursor:pointer;color:var(--text-secondary);font-size:14px;padding:4px 0}
@@ -3330,6 +3331,17 @@ function conectarIrA(){
 // Explorar con los dedos en la vista 3D: baja las calles de la zona que vas recorriendo
 let EXPL=null;
 window.__v3Explorar=p=>{
+  if(p && p.sinMapa){   // tocaron la vista 3D sin calles reales (sin GPS): arranca desde tu última ubicación o tu casa
+    if(window.__v3SinMapaT && Date.now()-window.__v3SinMapaT<4000) return; window.__v3SinMapaT=Date.now();
+    if(enClaude()){ toast('Para recorrer calles reales abre la app en tu teléfono'); return; }
+    let c=ultimaPos || (C3D.datos && C3D.datos.centro) || null;
+    if(!c){ try{ const k=JSON.parse(localStorage.getItem(LS_CASA)||'null'); if(k && isFinite(k.lat)) c=k; }catch(e){} }
+    if(!c){ toast('Activa tu ubicación (📍) o usa «🧭 Ir a…» para recorrer las calles'); return; }
+    if(jornadaActiva()){ toast('Esperando la señal del GPS…'); return; }
+    if(!conInternet() && !C3D.datos){ toast('Sin internet: no hay calles guardadas de esta zona'); return; }
+    VISITA={lat:+c.lat, lon:+c.lon, nombre:'tu zona', dir:dirActual||{calle:'Tu zona'}, ts:Date.now()}; C3D.intento=0;
+    toast('Cargando las calles… luego arrastra con el dedo'); renderJornada(); return;
+  }
   EXPL=p;
   const c=p || VISITA || ultimaPos; if(!c) return;
   if(C3D.datos && haversine(C3D.datos.centro,{lat:c.lat,lon:c.lon})>=0.3) C3D.intento=0;
