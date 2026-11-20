@@ -1,12 +1,13 @@
 // Bitácora Uber: guarda la app en el teléfono para que abra sin internet.
-const CACHE='bitacora-uber-v49';
+const CACHE='bitacora-uber-v51';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png'];
 // Archivos del mapa sin internet: se guardan si existen (si falta alguno, la app sigue funcionando)
 const OPCIONALES=['./vista3d.js','./maplibre-gl.js','./maplibre-gl.css','./mapa-offline.js',
   ...['regular','medium','italic'].flatMap(f=>['0-255','256-511','8192-8447'].map(r=>`./letra-${f}-${r}.pbf`))];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(async c=>{
-  await c.addAll(FILES);
-  await Promise.all(OPCIONALES.map(u=>c.add(u).catch(()=>{})));
+  const fresco=u=>new Request(u,{cache:'reload'});                       // no usar la copia vieja del navegador
+  await c.addAll(FILES.map(fresco));
+  await Promise.all(OPCIONALES.map(u=>c.add(fresco(u)).catch(()=>{})));
 })); self.skipWaiting(); });
 // Al activar, borra versiones viejas de la app, pero NUNCA el mapa guardado (bitacora-mapa-…)
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE && !k.startsWith('bitacora-mapa')).map(k=>caches.delete(k))))); self.clients.claim(); });
@@ -32,6 +33,11 @@ self.addEventListener('fetch',e=>{
   const guardar=r=>{ if(r&&r.ok){ const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); } return r; };
   if(e.request.mode==='navigate'){
     e.respondWith(fetch(e.request).then(guardar).catch(()=>caches.match(e.request,{ignoreSearch:true}).then(h=>h||caches.match('./index.html'))));
+    return;
+  }
+  // código de la app (vista3d.js, mapa-offline.js…): primero internet (sin caché vieja); sin señal, lo guardado
+  if(/\.(js|css|html)$/.test(u.pathname)){
+    e.respondWith(fetch(new Request(e.request,{cache:'no-cache'})).then(guardar).catch(()=>caches.match(e.request,{ignoreSearch:true})));
     return;
   }
   e.respondWith(caches.match(e.request,{ignoreSearch:true}).then(hit=>{
