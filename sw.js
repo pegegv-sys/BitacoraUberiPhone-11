@@ -1,5 +1,5 @@
 // Bitácora Uber: guarda la app en el teléfono para que abra sin internet.
-const CACHE='bitacora-uber-v53';
+const CACHE='bitacora-uber-v54';
 const FILES=['./','./index.html','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png'];
 // Archivos del mapa sin internet: se guardan si existen (si falta alguno, la app sigue funcionando)
 const OPCIONALES=['./vista3d.js','./maplibre-gl.js','./maplibre-gl.css','./mapa-offline.js',
@@ -32,12 +32,25 @@ self.addEventListener('fetch',e=>{
   if(/\.pmtiles$/.test(u.pathname)) return;                   // el mapa grande no pasa por aquí
   const guardar=r=>{ if(r&&r.ok){ const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); } return r; };
   if(e.request.mode==='navigate'){
-    e.respondWith(fetch(e.request).then(guardar).catch(()=>caches.match(e.request,{ignoreSearch:true}).then(h=>h||caches.match('./index.html'))));
+    e.respondWith((async()=>{
+      const red=fetch(e.request).then(guardar);
+      const hit=await caches.match(e.request,{ignoreSearch:true}) || await caches.match('./index.html');
+      if(!hit) return red;
+      const espera=new Promise(ok=>setTimeout(()=>ok(null),6000));
+      try{ const r=await Promise.race([red, espera]); return (r && r.ok)? r : hit; }catch(err){ return hit; }
+    })());
     return;
   }
   // código de la app (vista3d.js, mapa-offline.js…): primero internet (sin caché vieja); sin señal, lo guardado
   if(/\.(js|css|html)$/.test(u.pathname)){
-    e.respondWith(fetch(new Request(e.request,{cache:'no-cache'})).then(guardar).catch(()=>caches.match(e.request,{ignoreSearch:true})));
+    // con señal débil no se espera más de 5 s: si hay copia guardada se usa y la nueva se guarda cuando llegue
+    e.respondWith((async()=>{
+      const red=fetch(new Request(e.request,{cache:'no-cache'})).then(guardar);
+      const hit=await caches.match(e.request,{ignoreSearch:true});
+      if(!hit) return red;
+      const espera=new Promise(ok=>setTimeout(()=>ok(null),5000));
+      try{ const r=await Promise.race([red, espera]); return (r && r.ok)? r : hit; }catch(err){ return hit; }
+    })());
     return;
   }
   e.respondWith(caches.match(e.request,{ignoreSearch:true}).then(hit=>{
